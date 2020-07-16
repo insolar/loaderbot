@@ -2,6 +2,7 @@ package loaderbot
 
 import (
 	"context"
+	"sync"
 	"time"
 )
 
@@ -21,32 +22,40 @@ type Attack interface {
 }
 
 // attack receives schedule signal and attacks target calling Do() method, returning AttackResult with timings
-func attack(a Attack, r *Runner, num int) {
-	l := r.L.Clone()
-	ll := *l.With("attacker", num)
+func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
+	wg.Done()
 	for {
 		select {
 		case <-r.TimeoutCtx.Done():
-			ll.Infof("stopping attacker")
 			return
 		case <-r.next:
-			ctx, _ := context.WithTimeout(r.TimeoutCtx, time.Duration(r.cfg.AttackTimeout)*time.Second)
-
-			ll.Debug("attacking")
+			ctx, cancel := context.WithTimeout(r.TimeoutCtx, time.Duration(r.cfg.AttackerTimeout)*time.Second)
+			defer cancel()
 
 			tStart := time.Now()
-			doResult := a.Do(ctx)
+
+			done := make(chan DoResult)
+			go func() {
+				done <- a.Do(ctx)
+			}()
+			var doResult DoResult
+			// either get the result from the attacker or from the timeout
+			select {
+			case <-ctx.Done():
+				doResult = DoResult{
+					RequestLabel: r.name,
+					Error:        errAttackDoTimedOut,
+				}
+			case doResult = <-done:
+			}
+
 			tEnd := time.Now()
-			elapsed := tStart.Sub(tStart)
 
 			atkResult := AttackResult{
 				begin:    tStart,
 				end:      tEnd,
-				elapsed:  elapsed,
+				elapsed:  tEnd.Sub(tStart),
 				doResult: doResult,
-			}
-			if _, ok := r.stepMetrics[r.currentStep]; ok {
-				r.stepMetrics[r.currentStep].add(atkResult)
 			}
 			r.results <- atkResult
 		}

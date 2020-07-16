@@ -3,7 +3,7 @@ package loaderbot
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/spf13/viper"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -47,18 +47,16 @@ func setupLogger(encoding string, level string) *Logger {
 	if err != nil {
 		panic(err)
 	}
-	defer logger.Sync()
+	_ = logger.Sync()
 	return &Logger{logger.Sugar()}
 }
 
-func NewLogger() *Logger {
-	lvl := viper.GetString("logging.level")
-	if lvl == "" {
-		lvl = "info"
+func NewLogger(cfg *RunnerConfig) *Logger {
+	if cfg.LogLevel == "" {
+		cfg.LogLevel = "info"
 	}
-	encoding := viper.GetString("logging.encoding")
-	if encoding == "" {
-		encoding = "console"
+	if cfg.LogEncoding == "" {
+		cfg.LogEncoding = "console"
 	}
-	return setupLogger(encoding, lvl)
+	return setupLogger(cfg.LogEncoding, cfg.LogLevel)
 }

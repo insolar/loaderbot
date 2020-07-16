@@ -1,19 +1,24 @@
 package main
 
-import "github.com/insolar/loaderbot"
+import (
+	"fmt"
+
+	"github.com/insolar/loaderbot"
+)
 
 func main() {
 	cfg := &loaderbot.RunnerConfig{
-		Name:          "abc",
-		Attackers:     2000,
-		AttackTimeout: 5,
-		StartRPS:      20,
-		EndRPS:        100,
-		StepDuration:  5,
-		StepRPS:       5,
-		Timeout:       200,
-		WaitBefore:    10,
+		TargetUrl:        "https://clients5.google.com/pagead/drt/dn/",
+		Name:             "abc",
+		Attackers:        10,
+		AttackerTimeout:  5,
+		StartRPS:         100,
+		StepDurationSec:  10,
+		StepRPS:          300,
+		TestTimeSec:      200,
+		DynamicAttackers: true,
 	}
-	lt := loaderbot.NewRunner(cfg)
-	lt.Run()
+	lt := loaderbot.NewRunner(cfg, &loaderbot.HTTPAttackerExample{})
+	maxRPS, _ := lt.Run()
+	fmt.Printf("max rps: %.2f", maxRPS)
 }

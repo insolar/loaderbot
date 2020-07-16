@@ -22,6 +22,8 @@ type Metrics struct {
 	Wait time.Duration `json:"wait"`
 	// Requests is the total number of requests executed.
 	Requests uint64 `json:"requests"`
+	// TargetRate is the rate of requests per second demanded in current step.
+	TargetRate float64 `json:"target_rate"`
 	// Rate is the rate of requests per second.
 	Rate float64 `json:"rate"`
 	// Success is the percentage of non-error responses.
@@ -77,8 +79,6 @@ func (m Metrics) meanLogEntry() time.Duration {
 }
 
 func (m *Metrics) add(r AttackResult) {
-	m.init()
-
 	m.Requests++
 	// StatusCode is optional
 	if r.doResult.StatusCode > 0 {
@@ -121,8 +121,8 @@ func (m *Metrics) add(r AttackResult) {
 }
 
 // update computes derived summary Metrics which don't need to be Run on every add call.
-func (m *Metrics) update() {
-	m.init()
+func (m *Metrics) update(r *Runner) {
+	m.TargetRate = float64(r.targetRPS)
 	fRequests := float64(m.Requests)
 	m.Duration = m.Latest.Sub(m.Earliest)
 	if secs := m.Duration.Seconds(); secs > 0 {
