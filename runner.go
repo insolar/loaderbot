@@ -15,7 +15,7 @@ const (
 	DefaultMetricsUpdateInterval = 1 * time.Second
 	// scaling will be performed until current rate / target rate < ScaleUntilPercent
 	ScaleUntilPercent             = 0.90
-	DefaultScalingSkipTicks       = 3
+	DefaultScalingSkipTicks       = 1
 	DefaultScalingAttackersAmount = 200
 	DefaultScheduleQueueCapacity  = 100
 )
@@ -29,12 +29,18 @@ type Controlled struct {
 	Sleep uint64
 }
 
+type TestData struct {
+	*sync.Mutex
+	Index int
+	Data  interface{}
+}
+
 // Runner provides test context for attacking target with constant amount of runners with a schedule
 type Runner struct {
-	// name of a runner
-	name string
-	// cfg runner config
-	cfg *RunnerConfig
+	// Name of a runner
+	Name string
+	// Cfg runner config
+	Cfg *RunnerConfig
 
 	attackerPrototype Attack
 
@@ -81,15 +87,17 @@ type Runner struct {
 	controlledMu *sync.Mutex
 	controlled   Controlled
 
+	TestData *TestData
+
 	L *Logger
 }
 
 // NewRunner creates new runner with constant amount of attackers by RunnerConfig
-func NewRunner(cfg *RunnerConfig, a Attack) *Runner {
+func NewRunner(cfg *RunnerConfig, a Attack, data *TestData) *Runner {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.TestTimeSec)*time.Second)
 	r := &Runner{
-		name:              cfg.Name,
-		cfg:               cfg,
+		Name:              cfg.Name,
+		Cfg:               cfg,
 		attackerPrototype: a,
 		currentStep:       0,
 		targetRPS:         cfg.StartRPS,
@@ -113,12 +121,14 @@ func NewRunner(cfg *RunnerConfig, a Attack) *Runner {
 		resultsLog:        make([]AttackResult, 0),
 		controlledMu:      &sync.Mutex{},
 		controlled:        Controlled{},
+		TestData:          data,
 		L:                 NewLogger(cfg).With("runner", cfg.Name),
 	}
 	r.Validate()
+	r.DefaultCfgValues()
 	for i := 0; i < cfg.Attackers; i++ {
 		a := r.attackerPrototype.Clone(r)
-		if err := a.Setup(*r.cfg); err != nil {
+		if err := a.Setup(*r.Cfg); err != nil {
 			log.Fatal(errAttackerSetup)
 		}
 		r.attackers = append(r.attackers, a)
@@ -129,7 +139,7 @@ func NewRunner(cfg *RunnerConfig, a Attack) *Runner {
 }
 
 func (r *Runner) Validate() {
-	errors := r.cfg.Validate()
+	errors := r.Cfg.Validate()
 	if len(errors) > 0 {
 		for _, e := range errors {
 			r.L.Error(e)
@@ -138,11 +148,20 @@ func (r *Runner) Validate() {
 	}
 }
 
+func (r *Runner) DefaultCfgValues() {
+	if r.Cfg.ScalingAttackers == 0 {
+		r.Cfg.ScalingAttackers = 200
+	}
+	if r.Cfg.ScalingSkipTicks == 0 {
+		r.Cfg.ScalingSkipTicks = 1
+	}
+}
+
 // Run runs the test
 func (r *Runner) Run() (float64, error) {
-	r.L.Infof("waiting for %d seconds before start", r.cfg.WaitBeforeSec)
-	time.Sleep(time.Duration(r.cfg.WaitBeforeSec) * time.Second)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(r.cfg.TestTimeSec)*time.Second)
+	r.L.Infof("waiting for %d seconds before start", r.Cfg.WaitBeforeSec)
+	time.Sleep(time.Duration(r.Cfg.WaitBeforeSec) * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.TestTimeSec)*time.Second)
 	r.TimeoutCtx = ctx
 	r.cancel = cancel
 	wg := &sync.WaitGroup{}
@@ -167,7 +186,11 @@ func (r *Runner) maxRPS() float64 {
 	defer r.tickMetricsMu.Unlock()
 	rates := make([]float64, 0)
 	for _, tickMetrics := range r.tickUpdateMetrics {
-		rates = append(rates, tickMetrics.Rate)
+		rate := tickMetrics.Rate
+		if rate > tickMetrics.TargetRate {
+			rate = tickMetrics.TargetRate
+		}
+		rates = append(rates, rate)
 	}
 	return MaxRPS(rates)
 }
@@ -207,7 +230,7 @@ func (r *Runner) scaleAttackers() {
 		for i := 0; i < DefaultScalingAttackersAmount; i++ {
 			r.attackersMu.Lock()
 			a := r.attackerPrototype.Clone(r)
-			if err := a.Setup(*r.cfg); err != nil {
+			if err := a.Setup(*r.Cfg); err != nil {
 				log.Fatal(errAttackerSetup)
 			}
 			r.dynamicAttackers = append(r.dynamicAttackers, a)
@@ -224,7 +247,7 @@ func (r *Runner) scaleAttackers() {
 
 // rampUp changes ratelimit options on the run, increasing by step to target rps
 func (r *Runner) rampUp() {
-	ticker := NewImmediateTicker(time.Duration(r.cfg.StepDurationSec) * time.Second)
+	ticker := NewImmediateTicker(time.Duration(r.Cfg.StepDurationSec) * time.Second)
 	go func() {
 		for {
 			select {
@@ -232,7 +255,7 @@ func (r *Runner) rampUp() {
 				return
 			case <-ticker.C:
 				r.tickMetricsMu.Lock()
-				r.targetRPS += r.cfg.StepRPS
+				r.targetRPS += r.Cfg.StepRPS
 				r.tickMetricsMu.Unlock()
 				r.rlMu.Lock()
 				r.rl = ratelimit.New(r.targetRPS)
@@ -260,7 +283,7 @@ func (r *Runner) collectResults() {
 				if res.doResult.Error != nil {
 					r.L.Debugf("attacker error: %s", res.doResult.Error)
 					r.Failed = true
-					if r.cfg.FailOnFirstError {
+					if r.Cfg.FailOnFirstError {
 						r.cancel()
 					}
 				}
@@ -294,7 +317,7 @@ func (r *Runner) updateMetrics() {
 					lastTickMetrics.successLogEntry(),
 				)
 
-				if r.cfg.DynamicAttackers {
+				if r.Cfg.DynamicAttackers {
 					r.scaleAttackers()
 				}
 				atomic.StoreUint64(&r.currentTick, r.currentTick+1)

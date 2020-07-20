@@ -16,7 +16,7 @@ func TestRunnerSuccess(t *testing.T) {
 		StepDurationSec: 5,
 		StepRPS:         2,
 		TestTimeSec:     5,
-	}, &ControlAttackerMock{})
+	}, &ControlAttackerMock{}, nil)
 	_, err := r.Run()
 	require.NoError(t, err)
 }
@@ -31,7 +31,7 @@ func TestRunnerFailOnFirstError(t *testing.T) {
 		StepRPS:          2,
 		TestTimeSec:      5,
 		FailOnFirstError: true,
-	}, &ControlAttackerMock{})
+	}, &ControlAttackerMock{}, nil)
 	serviceError := make(chan bool)
 	cfg := ControllableConfig{
 		R:               r,
@@ -55,7 +55,7 @@ func TestScalingWhenLatencyIncreases(t *testing.T) {
 		StepRPS:          50,
 		DynamicAttackers: true,
 		TestTimeSec:      60,
-	}, &ControlAttackerMock{})
+	}, &ControlAttackerMock{}, nil)
 	cfg := ControllableConfig{
 		R:               r,
 		ControlChan:     make(chan bool),
@@ -92,7 +92,7 @@ func TestNotScalingWhenLatencyDecreases(t *testing.T) {
 		StepRPS:          10,
 		DynamicAttackers: true,
 		TestTimeSec:      60,
-	}, &ControlAttackerMock{})
+	}, &ControlAttackerMock{}, nil)
 	cfg := ControllableConfig{
 		R:               r,
 		ControlChan:     make(chan bool),
@@ -129,7 +129,7 @@ func TestRunnerRealServiceAttack(t *testing.T) {
 		StepRPS:          50,
 		TestTimeSec:      20,
 		DynamicAttackers: true,
-	}, &HTTPAttackerExample{})
+	}, &HTTPAttackerExample{}, nil)
 	maxRPS, _ := r.Run()
 	t.Logf("max rps: %.2f", maxRPS)
 }

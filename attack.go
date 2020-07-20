@@ -29,7 +29,7 @@ func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
 		case <-r.TimeoutCtx.Done():
 			return
 		case <-r.next:
-			ctx, cancel := context.WithTimeout(r.TimeoutCtx, time.Duration(r.cfg.AttackerTimeout)*time.Second)
+			ctx, cancel := context.WithTimeout(r.TimeoutCtx, time.Duration(r.Cfg.AttackerTimeout)*time.Second)
 			defer cancel()
 
 			tStart := time.Now()
@@ -43,7 +43,7 @@ func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
 			select {
 			case <-ctx.Done():
 				doResult = DoResult{
-					RequestLabel: r.name,
+					RequestLabel: r.Name,
 					Error:        errAttackDoTimedOut,
 				}
 			case doResult = <-done:

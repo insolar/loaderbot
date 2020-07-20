@@ -18,7 +18,7 @@ func (r *Runner) handleShutdownSignal() {
 	go func() {
 		<-sigs
 		r.L.Infof("exit signal received, exiting")
-		if r.cfg.GoroutinesDump {
+		if r.Cfg.GoroutinesDump {
 			buf := make([]byte, 1<<20)
 			stacklen := runtime.Stack(buf, true)
 			r.L.Infof("=== received SIGTERM ===\n*** goroutine dump...\n%s\n*** end\n", buf[:stacklen])

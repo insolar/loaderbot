@@ -26,6 +26,10 @@ type RunnerConfig struct {
 	GoroutinesDump bool
 	// Dynamic creates attackers if current rps < target rps
 	DynamicAttackers bool
+	// ScalingAttackers amount of attackers to run if rps < target rps
+	ScalingAttackers int
+	// ScalingSkipTicks amount of ticks to wait for run additional attackers
+	ScalingSkipTicks int
 	// FailOnFirstError fails on first error
 	FailOnFirstError bool
 	// LogLevel debug|info, etc.

@@ -20,7 +20,7 @@ func DefaultRunnerCfg() *RunnerConfig {
 }
 
 func TestAttackSuccess(t *testing.T) {
-	r := NewRunner(DefaultRunnerCfg(), &ControlAttackerMock{})
+	r := NewRunner(DefaultRunnerCfg(), &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 10
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
@@ -38,7 +38,7 @@ func TestAttackSuccess(t *testing.T) {
 }
 
 func TestAttackTimeout(t *testing.T) {
-	r := NewRunner(DefaultRunnerCfg(), &ControlAttackerMock{})
+	r := NewRunner(DefaultRunnerCfg(), &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 2000
 	wg := &sync.WaitGroup{}
 	wg.Add(1)

@@ -20,9 +20,9 @@ func (a *HTTPAttackerExample) Setup(c RunnerConfig) error {
 }
 
 func (a *HTTPAttackerExample) Do(_ context.Context) DoResult {
-	_, err := a.client.Get(a.cfg.TargetUrl)
+	_, err := a.client.Get(a.Cfg.TargetUrl)
 	return DoResult{
-		RequestLabel: a.name,
+		RequestLabel: a.Name,
 		Error:        err,
 	}
 }

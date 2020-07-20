@@ -30,12 +30,12 @@ func (a *ControlAttackerMock) Do(_ context.Context) DoResult {
 	select {
 	case <-a.serviceError:
 		log.Printf("service error happens")
-		return DoResult{RequestLabel: a.r.name, Error: errors.New("service error")}
+		return DoResult{RequestLabel: a.r.Name, Error: errors.New("service error")}
 	default:
 	}
 	sleepTime := atomic.LoadUint64(&a.r.controlled.Sleep)
 	time.Sleep(time.Duration(sleepTime) * time.Millisecond)
-	return DoResult{RequestLabel: a.r.name}
+	return DoResult{RequestLabel: a.r.Name}
 }
 
 func (a *ControlAttackerMock) Teardown() error {

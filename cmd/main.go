@@ -18,7 +18,7 @@ func main() {
 		TestTimeSec:      200,
 		DynamicAttackers: true,
 	}
-	lt := loaderbot.NewRunner(cfg, &loaderbot.HTTPAttackerExample{})
+	lt := loaderbot.NewRunner(cfg, &loaderbot.HTTPAttackerExample{}, nil)
 	maxRPS, _ := lt.Run()
 	fmt.Printf("max rps: %.2f", maxRPS)
 }
