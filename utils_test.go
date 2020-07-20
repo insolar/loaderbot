@@ -15,7 +15,6 @@ func serviceErrorAfter(se chan bool, t time.Duration) {
 type ControllableConfig struct {
 	R               *Runner
 	ControlChan     chan bool
-	AttackerLatency time.Duration
 	AttackersAmount int
 }
 

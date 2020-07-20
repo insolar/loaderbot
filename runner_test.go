@@ -51,10 +51,10 @@ func TestRunnerFailOnFirstError(t *testing.T) {
 		FailOnFirstError: true,
 	}, &ControlAttackerMock{}, nil)
 	serviceError := make(chan bool)
+	r.controlled.Sleep = 80
 	cfg := ControllableConfig{
 		R:               r,
 		ControlChan:     serviceError,
-		AttackerLatency: 100 * time.Millisecond,
 		AttackersAmount: 3,
 	}
 	withControllableAttackers(cfg)
@@ -72,15 +72,9 @@ func TestScalingWhenLatencyIncreases(t *testing.T) {
 		StepDurationSec:  10,
 		StepRPS:          50,
 		DynamicAttackers: true,
-		TestTimeSec:      60,
+		TestTimeSec:      40,
 	}, &ControlAttackerMock{}, nil)
-	cfg := ControllableConfig{
-		R:               r,
-		ControlChan:     make(chan bool),
-		AttackerLatency: 10 * time.Millisecond,
-		AttackersAmount: 3,
-	}
-	withControllableAttackers(cfg)
+	r.controlled.Sleep = 30
 	latCfg := ServiceLatencyChangeConfig{
 		R:             r,
 		Interval:      1 * time.Second,
@@ -109,20 +103,14 @@ func TestNotScalingWhenLatencyDecreases(t *testing.T) {
 		StepDurationSec:  10,
 		StepRPS:          10,
 		DynamicAttackers: true,
-		TestTimeSec:      60,
+		TestTimeSec:      40,
 	}, &ControlAttackerMock{}, nil)
-	cfg := ControllableConfig{
-		R:               r,
-		ControlChan:     make(chan bool),
-		AttackerLatency: 900 * time.Millisecond,
-		AttackersAmount: 300,
-	}
-	withControllableAttackers(cfg)
+	r.controlled.Sleep = 900
 	latCfg := ServiceLatencyChangeConfig{
 		R:             r,
 		Interval:      1 * time.Second,
 		LatencyStepMs: 30,
-		Times:         10,
+		Times:         30,
 		LatencyFlag:   decreaseLatency,
 	}
 	changeAttackersLatency(latCfg)

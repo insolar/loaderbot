@@ -79,6 +79,8 @@ type Runner struct {
 
 	results    chan AttackResult
 	resultsLog []AttackResult
+	// uniq error messages
+	uniqErrors map[string]int
 
 	// Failed means there some errors in test
 	Failed bool
@@ -116,6 +118,7 @@ func NewRunner(cfg *RunnerConfig, a Attack, data *TestData) *Runner {
 		dynamicAttackers:  make([]Attack, 0),
 		results:           make(chan AttackResult),
 		resultsLog:        make([]AttackResult, 0),
+		uniqErrors:        make(map[string]int),
 		controlledMu:      &sync.Mutex{},
 		controlled:        Controlled{},
 		TestData:          data,
@@ -176,7 +179,15 @@ func (r *Runner) Run() (float64, error) {
 	<-r.TimeoutCtx.Done()
 	r.cancel()
 	r.L.Infof("runner exited")
+	r.printErrors()
 	return r.maxRPS(), nil
+}
+
+func (r *Runner) printErrors() {
+	r.L.Infof("Uniq errors:")
+	for e, count := range r.uniqErrors {
+		r.L.Infof("error: %s, count: %d", e, count)
+	}
 }
 
 func (r *Runner) maxRPS() float64 {
@@ -279,6 +290,7 @@ func (r *Runner) collectResults() {
 				lastTickMetrics.add(res)
 				r.tickMetricsMu.Unlock()
 				if res.doResult.Error != nil {
+					r.uniqErrors[res.doResult.Error.Error()] += 1
 					r.L.Debugf("attacker error: %s", res.doResult.Error)
 					r.Failed = true
 					if r.Cfg.FailOnFirstError {
