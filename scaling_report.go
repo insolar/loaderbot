@@ -105,6 +105,9 @@ func RenderChart(requests map[string]ChartLine, fileName string) error {
 		return err
 	}
 	defer file.Close()
-	graph.Render(chart.PNG, file)
+	err = graph.Render(chart.PNG, file)
+	if err != nil {
+		log.Fatal(err)
+	}
 	return graph.Render(chart.PNG, file)
 }
