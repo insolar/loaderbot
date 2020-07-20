@@ -1,8 +1,10 @@
 package loaderbot
 
 import (
+	"context"
 	"sync"
 	"testing"
+	"time"
 )
 
 func DefaultRunnerCfg() *RunnerConfig {
@@ -24,6 +26,9 @@ func TestAttackSuccess(t *testing.T) {
 	r.controlled.Sleep = 10
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.TestTimeSec)*time.Second)
+	r.TimeoutCtx = ctx
+	r.cancel = cancel
 	go attack(r.attackers[0], r, wg)
 	wg.Wait()
 
@@ -42,6 +47,9 @@ func TestAttackTimeout(t *testing.T) {
 	r.controlled.Sleep = 2000
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.TestTimeSec)*time.Second)
+	r.TimeoutCtx = ctx
+	r.cancel = cancel
 	go attack(r.attackers[0], r, wg)
 	wg.Wait()
 
