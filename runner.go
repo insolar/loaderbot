@@ -174,6 +174,7 @@ func (r *Runner) Run() (float64, error) {
 	r.updateMetrics()
 	r.handleShutdownSignal()
 	<-r.TimeoutCtx.Done()
+	r.cancel()
 	r.L.Infof("runner exited")
 	return r.maxRPS(), nil
 }

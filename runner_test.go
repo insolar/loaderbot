@@ -22,7 +22,7 @@ func TestRunnerSuccess(t *testing.T) {
 }
 
 func TestMultipleRunnersSuccess(t *testing.T) {
-	r := NewRunner(&RunnerConfig{
+	cfg := &RunnerConfig{
 		Name:            "",
 		Attackers:       1,
 		AttackerTimeout: 1,
@@ -30,10 +30,12 @@ func TestMultipleRunnersSuccess(t *testing.T) {
 		StepDurationSec: 5,
 		StepRPS:         2,
 		TestTimeSec:     1,
-	}, &ControlAttackerMock{}, nil)
+	}
+	r := NewRunner(cfg, &ControlAttackerMock{}, nil)
 	_, err := r.Run()
 	require.NoError(t, err)
-	_, err2 := r.Run()
+	r2 := NewRunner(cfg, &ControlAttackerMock{}, nil)
+	_, err2 := r2.Run()
 	require.NoError(t, err2)
 }
 
