@@ -94,7 +94,6 @@ type Runner struct {
 
 // NewRunner creates new runner with constant amount of attackers by RunnerConfig
 func NewRunner(cfg *RunnerConfig, a Attack, data *TestData) *Runner {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.TestTimeSec)*time.Second)
 	r := &Runner{
 		Name:              cfg.Name,
 		Cfg:               cfg,
@@ -108,8 +107,6 @@ func NewRunner(cfg *RunnerConfig, a Attack, data *TestData) *Runner {
 		tickUpdateMetrics: make([]*Metrics, 0),
 		scalingInfo:       ScalingInfo{TicksInSteps: make(map[uint64]int)},
 		metrics:           NewMetrics(),
-		TimeoutCtx:        ctx,
-		cancel:            cancel,
 		next:              make(chan bool, DefaultScheduleQueueCapacity),
 		stepMu:            &sync.Mutex{},
 		rlMu:              &sync.Mutex{},

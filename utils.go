@@ -1,8 +1,10 @@
 package loaderbot
 
 import (
+	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"syscall"
 	"time"
@@ -39,6 +41,21 @@ func NewImmediateTicker(repeat time.Duration) *time.Ticker {
 	}()
 	ticker.C = nc
 	return ticker
+}
+
+func CreateFileOrAppend(fname string) *os.File {
+	var file *os.File
+	fpath, _ := filepath.Abs(fname)
+	_, err := os.Stat(fpath)
+	if err != nil {
+		file, err = os.Create(fname)
+	} else {
+		file, err = os.OpenFile(fname, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+	return file
 }
 
 func MaxRPS(array []float64) float64 {

@@ -21,6 +21,22 @@ func TestRunnerSuccess(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestMultipleRunnersSuccess(t *testing.T) {
+	r := NewRunner(&RunnerConfig{
+		Name:            "",
+		Attackers:       1,
+		AttackerTimeout: 1,
+		StartRPS:        1,
+		StepDurationSec: 5,
+		StepRPS:         2,
+		TestTimeSec:     1,
+	}, &ControlAttackerMock{}, nil)
+	_, err := r.Run()
+	require.NoError(t, err)
+	_, err2 := r.Run()
+	require.NoError(t, err2)
+}
+
 func TestRunnerFailOnFirstError(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:             "",
