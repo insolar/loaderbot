@@ -28,36 +28,41 @@ func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
 		select {
 		case <-r.TimeoutCtx.Done():
 			return
-		case <-r.next:
+		case currentStep := <-r.next:
 			ctx, cancel := context.WithTimeout(r.TimeoutCtx, time.Duration(r.Cfg.AttackerTimeout)*time.Second)
 			defer cancel()
 
 			tStart := time.Now()
 
 			done := make(chan DoResult)
+
 			go func() {
 				done <- a.Do(ctx)
 			}()
-			var doResult DoResult
-			// either get the result from the attacker or from the timeout
-			select {
-			case <-ctx.Done():
-				doResult = DoResult{
-					RequestLabel: r.Name,
-					Error:        errAttackDoTimedOut,
+
+			go func(currentStep uint64) {
+				var doResult DoResult
+				// either get the result from the attacker or from the timeout
+				select {
+				case <-ctx.Done():
+					doResult = DoResult{
+						RequestLabel: r.Name,
+						Error:        errAttackDoTimedOut,
+					}
+				case doResult = <-done:
 				}
-			case doResult = <-done:
-			}
 
-			tEnd := time.Now()
+				tEnd := time.Now()
 
-			atkResult := AttackResult{
-				begin:    tStart,
-				end:      tEnd,
-				elapsed:  tEnd.Sub(tStart),
-				doResult: doResult,
-			}
-			r.results <- atkResult
+				atkResult := AttackResult{
+					Step:     currentStep,
+					begin:    tStart,
+					end:      tEnd,
+					elapsed:  tEnd.Sub(tStart),
+					doResult: doResult,
+				}
+				r.results <- atkResult
+			}(currentStep)
 		}
 	}
 }

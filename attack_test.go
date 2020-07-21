@@ -32,7 +32,7 @@ func TestAttackSuccess(t *testing.T) {
 	go attack(r.attackers[0], r, wg)
 	wg.Wait()
 
-	r.next <- true
+	r.next <- 1
 	res := <-r.results
 	if got, want := res.doResult.Error, error(nil); got != want {
 		t.Fatalf("got %v want %v", got, want)
@@ -53,7 +53,7 @@ func TestAttackTimeout(t *testing.T) {
 	go attack(r.attackers[0], r, wg)
 	wg.Wait()
 
-	r.next <- true
+	r.next <- 1
 	res := <-r.results
 	if got, want := res.doResult.Error, errAttackDoTimedOut; got != want {
 		t.Fatalf("got %v want %v", got, want)
