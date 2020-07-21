@@ -70,6 +70,7 @@ func (m Metrics) successLogEntry() int {
 	return s
 }
 
+// nolint
 func (m Metrics) meanLogEntry() time.Duration {
 	lm := m.Latencies.Mean
 	if lm < 0 {

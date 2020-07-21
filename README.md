@@ -40,12 +40,14 @@ cfg := &loaderbot.RunnerConfig{
 		StepDurationSec:  10,
 		StepRPS:          300,
 		TestTimeSec:      200,
-		DynamicAttackers: true,
 	}
 lt := loaderbot.NewRunner(cfg, &loaderbot.HTTPAttackerExample{})
 maxRPS, _ := lt.Run()
 fmt.Printf("max rps: %.2f", maxRPS)
 ```
+
+When you know your system allows only limited number of clients,
+and it's ok for blocking use ```PrivateSystem``` flag in cfg, otherwise ```OpenWorldSystem```
 
 #### Development
 ```

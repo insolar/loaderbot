@@ -1,11 +1,26 @@
 package loaderbot
 
+type SystemMode int
+
+const (
+	PrivateSystem SystemMode = iota
+	OpenWorldSystem
+)
+
 // RunnerConfig runner configuration
 type RunnerConfig struct {
 	// TargetUrl target base url
 	TargetUrl string
 	// Name of a runner instance
 	Name string
+	// SystemMode PrivateSystem | OpenWorldSystem
+	// PrivateSystem:
+	// if application under test is a private system sync runner attackers will wait for response
+	// OpenWorldSystem:
+	// if application under test is an open world system async runner attackers will fire requests without waiting
+	// it creates some inaccuracy in results, so you can check latencies for service metrics,
+	// but the test will be more realistic from clients point of view
+	SystemMode SystemMode
 	// Attackers constant amount of attackers
 	Attackers int
 	// AttackerTimeout timeout of attacker
@@ -24,12 +39,6 @@ type RunnerConfig struct {
 	DumpTransport bool
 	// GoroutinesDump
 	GoroutinesDump bool
-	// Dynamic creates attackers if current rps < target rps
-	DynamicAttackers bool
-	// ScalingAttackers amount of attackers to run if rps < target rps
-	ScalingAttackers int
-	// ScalingSkipTicks amount of ticks to wait for run additional attackers
-	ScalingSkipTicks int
 	// FailOnFirstError fails on first error
 	FailOnFirstError bool
 	// LogLevel debug|info, etc.
@@ -38,9 +47,9 @@ type RunnerConfig struct {
 	LogEncoding string
 }
 
-// Validate checks all settings and returns a list of strings with problems.
+// validate checks all settings and returns a list of strings with problems.
 func (c RunnerConfig) Validate() (list []string) {
-	if c.Attackers <= 0 {
+	if c.Attackers <= 0 && c.SystemMode == PrivateSystem {
 		list = append(list, "please set attackers > 0")
 	}
 	if c.AttackerTimeout <= 0 {
@@ -53,7 +62,7 @@ func (c RunnerConfig) Validate() (list []string) {
 		list = append(list, "please set step duration > 0, seconds")
 	}
 	if c.StepRPS <= 0 {
-		list = append(list, "please set end rps > 0")
+		list = append(list, "please set step rps > 0")
 	}
 	if c.TestTimeSec <= 0 {
 		list = append(list, "please set test time rps > 0, seconds")

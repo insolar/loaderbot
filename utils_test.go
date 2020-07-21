@@ -26,6 +26,7 @@ func withControllableAttackers(cfg ControllableConfig) {
 	cfg.R.attackers = attackers
 }
 
+// nolint
 type ServiceLatencyChangeConfig struct {
 	R             *Runner
 	Interval      time.Duration
@@ -39,6 +40,7 @@ const (
 	decreaseLatency
 )
 
+// nolint
 func changeAttackersLatency(cfg ServiceLatencyChangeConfig) {
 	go func() {
 		for i := 0; i < cfg.Times; i++ {

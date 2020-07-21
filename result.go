@@ -4,7 +4,7 @@ import "time"
 
 type AttackResult struct {
 	// Step when request scheduled to execute
-	Step       uint64
+	nextMsg    nextMsg
 	begin, end time.Time
 	elapsed    time.Duration
 	doResult   DoResult

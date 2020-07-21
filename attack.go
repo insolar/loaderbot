@@ -28,23 +28,74 @@ func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
 		select {
 		case <-r.TimeoutCtx.Done():
 			return
-		case currentStep := <-r.next:
-			ctx, cancel := context.WithTimeout(r.TimeoutCtx, time.Duration(r.Cfg.AttackerTimeout)*time.Second)
-			defer cancel()
+		case nextMsg := <-r.next:
+			requestCtx, requestCtxCancel := context.WithTimeout(r.TimeoutCtx, time.Duration(r.Cfg.AttackerTimeout)*time.Second)
 
 			tStart := time.Now()
 
 			done := make(chan DoResult)
 
 			go func() {
-				done <- a.Do(ctx)
+				select {
+				case <-requestCtx.Done():
+					return
+				case done <- a.Do(requestCtx):
+				}
 			}()
 
-			go func(currentStep uint64) {
+			var doResult DoResult
+			// either get the result from the attacker or from the timeout
+			select {
+			case <-requestCtx.Done():
+				doResult = DoResult{
+					RequestLabel: r.Name,
+					Error:        errAttackDoTimedOut,
+				}
+			case doResult = <-done:
+			}
+
+			tEnd := time.Now()
+
+			atkResult := AttackResult{
+				nextMsg:  nextMsg,
+				begin:    tStart,
+				end:      tEnd,
+				elapsed:  tEnd.Sub(tStart),
+				doResult: doResult,
+			}
+			requestCtxCancel()
+			r.results <- atkResult
+		}
+	}
+}
+
+// asyncAttack receives schedule signal and attacks target calling Do() method asynchronously, returning AttackResult with timings
+func asyncAttack(a Attack, r *Runner, wg *sync.WaitGroup) {
+	wg.Done()
+	for {
+		select {
+		case <-r.TimeoutCtx.Done():
+			return
+		case nextMsg := <-r.next:
+			requestCtx, requestCtxCancel := context.WithTimeout(r.TimeoutCtx, time.Duration(r.Cfg.AttackerTimeout)*time.Second)
+
+			tStart := time.Now()
+
+			done := make(chan DoResult)
+
+			go func() {
+				select {
+				case <-requestCtx.Done():
+					return
+				case done <- a.Do(requestCtx):
+				}
+			}()
+
+			go func() {
 				var doResult DoResult
 				// either get the result from the attacker or from the timeout
 				select {
-				case <-ctx.Done():
+				case <-requestCtx.Done():
 					doResult = DoResult{
 						RequestLabel: r.Name,
 						Error:        errAttackDoTimedOut,
@@ -55,14 +106,15 @@ func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
 				tEnd := time.Now()
 
 				atkResult := AttackResult{
-					Step:     currentStep,
+					nextMsg:  nextMsg,
 					begin:    tStart,
 					end:      tEnd,
 					elapsed:  tEnd.Sub(tStart),
 					doResult: doResult,
 				}
+				requestCtxCancel()
 				r.results <- atkResult
-			}(currentStep)
+			}()
 		}
 	}
 }

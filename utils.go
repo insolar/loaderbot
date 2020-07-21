@@ -18,14 +18,18 @@ func (r *Runner) handleShutdownSignal() {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		<-sigs
-		r.L.Infof("exit signal received, exiting")
-		if r.Cfg.GoroutinesDump {
-			buf := make([]byte, 1<<20)
-			stacklen := runtime.Stack(buf, true)
-			r.L.Infof("=== received SIGTERM ===\n*** goroutine dump...\n%s\n*** end\n", buf[:stacklen])
+		select {
+		case <-r.TimeoutCtx.Done():
+			return
+		case <-sigs:
+			r.L.Infof("exit signal received, exiting")
+			if r.Cfg.GoroutinesDump {
+				buf := make([]byte, 1<<20)
+				stacklen := runtime.Stack(buf, true)
+				r.L.Infof("=== received SIGTERM ===\n*** goroutine dump...\n%s\n*** end\n", buf[:stacklen])
+			}
+			os.Exit(1)
 		}
-		os.Exit(1)
 	}()
 }
 
