@@ -1,3 +1,10 @@
+/*
+ * // Copyright 2020 Insolar Network Ltd.
+ * // All rights reserved.
+ * // This material is licensed under the Insolar License version 1.0,
+ * // available at https://github.com/insolar/assured-ledger/blob/master/LICENSE.md.
+ */
+
 package loaderbot
 
 import (
@@ -52,11 +59,5 @@ func setupLogger(encoding string, level string) *Logger {
 }
 
 func NewLogger(cfg *RunnerConfig) *Logger {
-	if cfg.LogLevel == "" {
-		cfg.LogLevel = "info"
-	}
-	if cfg.LogEncoding == "" {
-		cfg.LogEncoding = "console"
-	}
 	return setupLogger(cfg.LogEncoding, cfg.LogLevel)
 }

@@ -1,3 +1,10 @@
+/*
+ * // Copyright 2020 Insolar Network Ltd.
+ * // All rights reserved.
+ * // This material is licensed under the Insolar License version 1.0,
+ * // available at https://github.com/insolar/assured-ledger/blob/master/LICENSE.md.
+ */
+
 package loaderbot
 
 import (
@@ -28,20 +35,24 @@ func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
 		select {
 		case <-r.TimeoutCtx.Done():
 			return
-		case <-r.next:
-			ctx, cancel := context.WithTimeout(r.TimeoutCtx, time.Duration(r.Cfg.AttackerTimeout)*time.Second)
-			defer cancel()
+		case nextMsg := <-r.next:
+			requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.AttackerTimeout)*time.Second)
 
 			tStart := time.Now()
 
 			done := make(chan DoResult)
-			go func() {
-				done <- a.Do(ctx)
-			}()
+
 			var doResult DoResult
+
+			go func() {
+				done <- a.Do(requestCtx)
+			}()
 			// either get the result from the attacker or from the timeout
 			select {
-			case <-ctx.Done():
+			case <-r.TimeoutCtx.Done():
+				requestCtxCancel()
+				return
+			case <-requestCtx.Done():
 				doResult = DoResult{
 					RequestLabel: r.Name,
 					Error:        errAttackDoTimedOut,
@@ -52,12 +63,64 @@ func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
 			tEnd := time.Now()
 
 			atkResult := AttackResult{
+				nextMsg:  nextMsg,
 				begin:    tStart,
 				end:      tEnd,
 				elapsed:  tEnd.Sub(tStart),
 				doResult: doResult,
 			}
+			requestCtxCancel()
 			r.results <- atkResult
+		}
+	}
+}
+
+// asyncAttack receives schedule signal and attacks target calling Do() method asynchronously, returning AttackResult with timings
+func asyncAttack(a Attack, r *Runner, wg *sync.WaitGroup) {
+	wg.Done()
+	for {
+		select {
+		case <-r.TimeoutCtx.Done():
+			return
+		case nextMsg := <-r.next:
+			requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.AttackerTimeout)*time.Second)
+
+			tStart := time.Now()
+
+			done := make(chan DoResult)
+
+			var doResult DoResult
+
+			go func() {
+				done <- a.Do(requestCtx)
+			}()
+
+			go func() {
+				// either get the result from the attacker or from the timeout
+				select {
+				case <-r.TimeoutCtx.Done():
+					requestCtxCancel()
+					return
+				case <-requestCtx.Done():
+					doResult = DoResult{
+						RequestLabel: r.Name,
+						Error:        errAttackDoTimedOut,
+					}
+				case doResult = <-done:
+				}
+
+				tEnd := time.Now()
+
+				atkResult := AttackResult{
+					nextMsg:  nextMsg,
+					begin:    tStart,
+					end:      tEnd,
+					elapsed:  tEnd.Sub(tStart),
+					doResult: doResult,
+				}
+				requestCtxCancel()
+				r.results <- atkResult
+			}()
 		}
 	}
 }

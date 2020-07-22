@@ -1,3 +1,10 @@
+/*
+ * // Copyright 2020 Insolar Network Ltd.
+ * // All rights reserved.
+ * // This material is licensed under the Insolar License version 1.0,
+ * // available at https://github.com/insolar/assured-ledger/blob/master/LICENSE.md.
+ */
+
 package loaderbot
 
 import (
@@ -26,6 +33,7 @@ func withControllableAttackers(cfg ControllableConfig) {
 	cfg.R.attackers = attackers
 }
 
+// nolint
 type ServiceLatencyChangeConfig struct {
 	R             *Runner
 	Interval      time.Duration
@@ -39,6 +47,7 @@ const (
 	decreaseLatency
 )
 
+// nolint
 func changeAttackersLatency(cfg ServiceLatencyChangeConfig) {
 	go func() {
 		for i := 0; i < cfg.Times; i++ {
