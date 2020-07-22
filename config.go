@@ -58,10 +58,10 @@ func (c RunnerConfig) Validate() (list []string) {
 	if c.StartRPS <= 0 {
 		list = append(list, "please set start rps > 0")
 	}
-	if c.StepDurationSec <= 0 {
+	if c.StepDurationSec < 0 {
 		list = append(list, "please set step duration > 0, seconds")
 	}
-	if c.StepRPS <= 0 {
+	if c.StepRPS < 0 {
 		list = append(list, "please set step rps > 0")
 	}
 	if c.TestTimeSec <= 0 {

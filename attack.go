@@ -29,23 +29,22 @@ func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
 		case <-r.TimeoutCtx.Done():
 			return
 		case nextMsg := <-r.next:
-			requestCtx, requestCtxCancel := context.WithTimeout(r.TimeoutCtx, time.Duration(r.Cfg.AttackerTimeout)*time.Second)
+			requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.AttackerTimeout)*time.Second)
 
 			tStart := time.Now()
 
 			done := make(chan DoResult)
 
-			go func() {
-				select {
-				case <-requestCtx.Done():
-					return
-				case done <- a.Do(requestCtx):
-				}
-			}()
-
 			var doResult DoResult
+
+			go func() {
+				done <- a.Do(requestCtx)
+			}()
 			// either get the result from the attacker or from the timeout
 			select {
+			case <-r.TimeoutCtx.Done():
+				requestCtxCancel()
+				return
 			case <-requestCtx.Done():
 				doResult = DoResult{
 					RequestLabel: r.Name,
@@ -77,24 +76,24 @@ func asyncAttack(a Attack, r *Runner, wg *sync.WaitGroup) {
 		case <-r.TimeoutCtx.Done():
 			return
 		case nextMsg := <-r.next:
-			requestCtx, requestCtxCancel := context.WithTimeout(r.TimeoutCtx, time.Duration(r.Cfg.AttackerTimeout)*time.Second)
+			requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.AttackerTimeout)*time.Second)
 
 			tStart := time.Now()
 
 			done := make(chan DoResult)
 
+			var doResult DoResult
+
 			go func() {
-				select {
-				case <-requestCtx.Done():
-					return
-				case done <- a.Do(requestCtx):
-				}
+				done <- a.Do(requestCtx)
 			}()
 
 			go func() {
-				var doResult DoResult
 				// either get the result from the attacker or from the timeout
 				select {
+				case <-r.TimeoutCtx.Done():
+					requestCtxCancel()
+					return
 				case <-requestCtx.Done():
 					doResult = DoResult{
 						RequestLabel: r.Name,

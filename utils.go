@@ -33,6 +33,29 @@ func (r *Runner) handleShutdownSignal() {
 	}()
 }
 
+// nolint
+// debug function to check metric correctness
+func (r *Runner) reportEvery100Req() {
+	if len(r.resultsLog)%100 == 0 {
+		r.metricsMu.Lock()
+		defer r.metricsMu.Unlock()
+		m := NewMetrics()
+		for _, r := range r.resultsLog[len(r.resultsLog)-100:] {
+			m.add(r)
+		}
+		m.update(r)
+		r.L.Infof("DEMAND rate [%4f -> %v], perc: 50 [%v] 95 [%v], # requests [%d], # attackers [%d], %% success [%d]",
+			m.Rate,
+			r.targetRPS,
+			m.Latencies.P50,
+			m.Latencies.P95,
+			m.Requests,
+			len(r.attackers),
+			m.successLogEntry(),
+		)
+	}
+}
+
 func NewImmediateTicker(repeat time.Duration) *time.Ticker {
 	ticker := time.NewTicker(repeat)
 	oc := ticker.C

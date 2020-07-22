@@ -117,7 +117,7 @@ func TestRunnerMaxRPSPrivateSystem(t *testing.T) {
 		StartRPS:        rps,
 		StepDurationSec: 5,
 		StepRPS:         1,
-		TestTimeSec:     5,
+		TestTimeSec:     7,
 	}, &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 300
 	maxRPS, err := r.Run()
@@ -133,11 +133,38 @@ func TestRunnerMaxRPSOpenWorldSystem(t *testing.T) {
 		StartRPS:        100,
 		StepDurationSec: 5,
 		StepRPS:         100,
-		TestTimeSec:     15,
+		TestTimeSec:     17,
 	}, &ControlAttackerMock{}, nil)
 	maxRPS, err := r.Run()
 	require.NoError(t, err)
 	require.Equal(t, 300, int(maxRPS))
+}
+
+func TestRunnerConstantLoad(t *testing.T) {
+	r := NewRunner(&RunnerConfig{
+		Name:            "",
+		SystemMode:      OpenWorldSystem,
+		AttackerTimeout: 1,
+		StartRPS:        30,
+		TestTimeSec:     15,
+	}, &ControlAttackerMock{}, nil)
+	r.controlled.Sleep = 300
+	maxRPS, err := r.Run()
+	require.NoError(t, err)
+	require.Equal(t, 30, int(maxRPS))
+
+	r2 := NewRunner(&RunnerConfig{
+		Name:            "",
+		SystemMode:      PrivateSystem,
+		Attackers:       300,
+		AttackerTimeout: 1,
+		StartRPS:        30,
+		TestTimeSec:     15,
+	}, &ControlAttackerMock{}, nil)
+	r2.controlled.Sleep = 300
+	maxRPS2, err2 := r2.Run()
+	require.NoError(t, err2)
+	require.Equal(t, 30, int(maxRPS2))
 }
 
 func TestDynamicLatency(t *testing.T) {
@@ -145,22 +172,22 @@ func TestDynamicLatency(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "",
 		SystemMode:      OpenWorldSystem,
-		Attackers:       500,
+		Attackers:       100,
 		AttackerTimeout: 25,
 		StartRPS:        100,
-		StepDurationSec: 2,
-		StepRPS:         10,
-		TestTimeSec:     100,
+		StepDurationSec: 5,
+		StepRPS:         50,
+		TestTimeSec:     120,
 	}, &ControlAttackerMock{}, nil)
-	r.controlled.Sleep = 30
-	// latCfg := ServiceLatencyChangeConfig{
-	// 	R:             r,
-	// 	Interval:      1 * time.Second,
-	// 	LatencyStepMs: 300,
-	// 	Times:         30,
-	// 	LatencyFlag:   increaseLatency,
-	// }
-	// changeAttackersLatency(latCfg)
+	r.controlled.Sleep = 300
+	latCfg := ServiceLatencyChangeConfig{
+		R:             r,
+		Interval:      1 * time.Second,
+		LatencyStepMs: 1000,
+		Times:         30,
+		LatencyFlag:   increaseLatency,
+	}
+	changeAttackersLatency(latCfg)
 	_, _ = r.Run()
 }
 

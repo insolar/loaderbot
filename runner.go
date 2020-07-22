@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,7 +14,7 @@ import (
 
 const (
 	DefaultMetricsUpdateInterval = 1 * time.Second
-	DefaultScheduleQueueCapacity = 1000
+	DefaultScheduleQueueCapacity = 10000
 	DefaultResultsQueueCapacity  = 10000
 )
 
@@ -22,6 +23,7 @@ type Controlled struct {
 	Sleep uint64
 }
 
+// TestData shared test data
 type TestData struct {
 	*sync.Mutex
 	Index int
@@ -140,6 +142,10 @@ func (r *Runner) DefaultCfgValues() {
 		// attacker will spawn goroutines for requests anyway, in this mode we are non-blocking
 		r.Cfg.Attackers = 1
 	}
+	// constant load
+	if r.Cfg.StepRPS == 0 {
+		r.Cfg.StepDurationSec = 10
+	}
 }
 
 // Run runs the test
@@ -165,8 +171,8 @@ func (r *Runner) Run() (float64, error) {
 	r.handleShutdownSignal()
 	r.schedule()
 	r.rampUp()
-	r.collectResults()
 	r.updateMetrics()
+	r.collectResults()
 	<-r.TimeoutCtx.Done()
 	r.cancel()
 	r.L.Infof("runner exited")
@@ -222,9 +228,6 @@ func (r *Runner) rampUp() {
 			case <-r.TimeoutCtx.Done():
 				return
 			case <-ticker.C:
-				r.rlMu.Lock()
-				r.rl = ratelimit.New(r.targetRPS)
-				r.rlMu.Unlock()
 				currentStep := atomic.LoadUint64(&r.currentStep)
 
 				r.metricsMu.Lock()
@@ -240,10 +243,14 @@ func (r *Runner) rampUp() {
 					stepMetrics.successLogEntry(),
 				)
 				r.targetRPS += r.Cfg.StepRPS
-				r.stepMetrics[currentStep+1] = NewMetrics()
+				r.rlMu.Lock()
+				r.rl = ratelimit.New(r.targetRPS)
+				r.rlMu.Unlock()
 				atomic.AddUint64(&r.currentStep, 1)
+				r.stepMetrics[currentStep+1] = NewMetrics()
 				r.L.Infof("next step: step -> %d, rps -> %d", currentStep+1, r.targetRPS)
 				r.metricsMu.Unlock()
+				r.L.Infof("current active goroutines: %d", runtime.NumGoroutine())
 			}
 		}
 	}()
@@ -260,8 +267,9 @@ func (r *Runner) collectResults() {
 				r.stepMetricsMu.Unlock()
 				return
 			case res := <-r.results:
+				currentStep := atomic.LoadUint64(&r.currentStep)
 				r.metricsMu.Lock()
-				r.stepMetrics[res.nextMsg.Step].add(res)
+				r.stepMetrics[currentStep].add(res)
 				r.metricsMu.Unlock()
 
 				currentTick := atomic.LoadUint64(&r.currentTick)
@@ -296,7 +304,7 @@ func (r *Runner) updateMetrics() {
 				currentTick := atomic.LoadUint64(&r.currentTick)
 				tickMetics := r.tickMetrics[currentTick]
 				tickMetics.update(r)
-				r.L.Infof("TICK rate [%4f -> %v], perc: 50 [%v] 95 [%v], # requests [%d], # attackers [%d], %% success [%d]",
+				r.L.Infof("rate [%4f -> %v], perc: 50 [%v] 95 [%v], # requests [%d], # attackers [%d], %% success [%d]",
 					tickMetics.Rate,
 					r.targetRPS,
 					tickMetics.Latencies.P50,

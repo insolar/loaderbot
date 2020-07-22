@@ -10,11 +10,11 @@ func main() {
 	cfg := &loaderbot.RunnerConfig{
 		TargetUrl:       "https://clients5.google.com/pagead/drt/dn/",
 		Name:            "abc",
-		Attackers:       10,
+		SystemMode:      loaderbot.OpenWorldSystem,
 		AttackerTimeout: 5,
 		StartRPS:        100,
-		StepDurationSec: 10,
-		StepRPS:         300,
+		StepDurationSec: 30,
+		StepRPS:         10,
 		TestTimeSec:     200,
 	}
 	lt := loaderbot.NewRunner(cfg, &loaderbot.HTTPAttackerExample{}, nil)
