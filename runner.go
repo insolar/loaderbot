@@ -54,52 +54,42 @@ type Runner struct {
 	Name string
 	// Cfg runner config
 	Cfg *RunnerConfig
-
+	// prototype from which all attackers cloned
 	attackerPrototype Attack
-
+	// target RPS for step, changed every step
 	targetRPS int
-
-	currentStep   uint64
-	metricsMu     *sync.Mutex
-	stepMetricsMu *sync.Mutex
-	stepMetrics   map[uint64]*Metrics
-
-	currentTick   uint64
-	tickMetricsMu *sync.Mutex
-	tickMetrics   map[uint64]*Metrics
-
-	asyncMetrics map[uint64]*AsyncMetrics
+	// current test step
+	currentStep uint64
+	// current metrics update tick
+	currentTick uint64
+	metricsMu   *sync.Mutex
+	// metrics for every tick
+	tickMetrics map[uint64]*AsyncMetrics
 
 	rlMu *sync.Mutex
 	rl   ratelimit.Limiter
 
-	// metrics constant load metrics
-	metrics *Metrics
-
 	// TimeoutCtx test timeout ctx
 	TimeoutCtx context.Context
-	cancel     context.CancelFunc
+	// test cancel func
+	cancel context.CancelFunc
 	// next schedule chan to signal to attack
 	next chan nextMsg
+	// attackers cloned for a prototype
+	attackers []Attack
 
-	attackersMu *sync.Mutex
-	attackers   []Attack
-
-	results    chan AttackResult
-	resultsLog []AttackResult
+	results chan AttackResult
+	// raw request results log
+	rawResultsLog []AttackResult
 	// uniq error messages
 	uniqErrors map[string]int
-
 	// Failed means there some errors in test
 	Failed bool
-
 	// data used to control attackers in test
 	controlled Controlled
-
 	// TestData data shared between attackers during test
 	TestData interface{}
-
-	L *Logger
+	L        *Logger
 }
 
 // NewRunner creates new runner with constant amount of attackers by RunnerConfig
@@ -114,19 +104,13 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		targetRPS:         cfg.StartRPS,
 		metricsMu:         &sync.Mutex{},
 		currentTick:       0,
-		stepMetricsMu:     &sync.Mutex{},
-		stepMetrics:       make(map[uint64]*Metrics),
-		tickMetricsMu:     &sync.Mutex{},
-		tickMetrics:       make(map[uint64]*Metrics),
-		metrics:           NewMetrics(),
 		next:              make(chan nextMsg, DefaultScheduleQueueCapacity),
 		rlMu:              &sync.Mutex{},
 		rl:                ratelimit.New(cfg.StartRPS),
-		attackersMu:       &sync.Mutex{},
 		attackers:         make([]Attack, 0),
 		results:           make(chan AttackResult, DefaultResultsQueueCapacity),
-		resultsLog:        make([]AttackResult, 0),
-		asyncMetrics:      make(map[uint64]*AsyncMetrics),
+		rawResultsLog:     make([]AttackResult, 0),
+		tickMetrics:       make(map[uint64]*AsyncMetrics),
 		uniqErrors:        make(map[string]int),
 		controlled:        Controlled{},
 		TestData:          data,
@@ -139,8 +123,6 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		}
 		r.attackers = append(r.attackers, a)
 	}
-	r.stepMetrics[0] = NewMetrics()
-	r.tickMetrics[0] = NewMetrics()
 	return r
 }
 
@@ -188,7 +170,7 @@ func (r *Runner) maxRPS() float64 {
 	r.metricsMu.Lock()
 	defer r.metricsMu.Unlock()
 	rates := make([]float64, 0)
-	for _, m := range r.asyncMetrics {
+	for _, m := range r.tickMetrics {
 		rates = append(rates, m.Metrics.Rate)
 	}
 	return MaxRPS(rates)
@@ -220,7 +202,7 @@ func (r *Runner) schedule() {
 	}()
 }
 
-// rampUp changes ratelimit options on the run, increasing rate by StepRPS and collecting step-aggregated metrics
+// rampUp changes ratelimit options on the run, increasing rate by StepRPS
 func (r *Runner) rampUp() {
 	ticker := time.NewTicker(time.Duration(r.Cfg.StepDurationSec) * time.Second)
 	go func() {
@@ -245,42 +227,42 @@ func (r *Runner) rampUp() {
 	}()
 }
 
+// isCompleteTick tick is complete when 95% of samples received
+func isCompleteTick(m *AsyncMetrics) bool {
+	return float64(len(m.Samples)) >= float64(m.Samples[0].nextMsg.TargetRPS)*0.95 && !m.Reported
+}
+
 // collectResults collects attackers results and writes them to one of report options
 func (r *Runner) collectResults() {
 	go func() {
 		for {
 			select {
 			case <-r.TimeoutCtx.Done():
-				r.stepMetricsMu.Lock()
 				r.printErrors()
-				r.stepMetricsMu.Unlock()
 				return
 			case res := <-r.results:
-				if _, ok := r.asyncMetrics[res.nextMsg.Tick]; !ok {
-					r.asyncMetrics[res.nextMsg.Tick] = &AsyncMetrics{
+				if _, ok := r.tickMetrics[res.nextMsg.Tick]; !ok {
+					r.tickMetrics[res.nextMsg.Tick] = &AsyncMetrics{
 						false,
 						make([]AttackResult, 0),
 						NewMetrics(),
 					}
 				}
-				currentTickMetrics := r.asyncMetrics[res.nextMsg.Tick]
+				currentTickMetrics := r.tickMetrics[res.nextMsg.Tick]
 				currentTickMetrics.Samples = append(currentTickMetrics.Samples, res)
-				//r.L.Infof("len of samples for tick %d: %d", res.nextMsg.Tick, len(currentTickMetrics.Samples))
-				if len(currentTickMetrics.Samples) >= int(currentTickMetrics.Samples[0].nextMsg.TargetRPS) && !currentTickMetrics.Reported {
-					r.L.Infof("last msg: %v", res.nextMsg)
+				if isCompleteTick(currentTickMetrics) {
 					currentTickMetrics.Reported = true
-					r.L.Infof("complete metrics for tick: %d", res.nextMsg.Tick)
 					for _, s := range currentTickMetrics.Samples {
 						currentTickMetrics.Metrics.add(s)
 					}
 					currentTickMetrics.Metrics.update()
-					r.L.Infof("rate [%4f -> %v], perc: 50 [%v] 95 [%v], # requests [%d], # attackers [%d], %% success [%d]",
+					r.L.Infof("tick: %d, rate [%4f -> %v], perc: 50 [%v] 95 [%v], # requests [%d], %% success [%d]",
+						res.nextMsg.Tick,
 						currentTickMetrics.Metrics.Rate,
 						res.nextMsg.TargetRPS,
 						currentTickMetrics.Metrics.Latencies.P50,
 						currentTickMetrics.Metrics.Latencies.P95,
 						currentTickMetrics.Metrics.Requests,
-						len(r.attackers),
 						currentTickMetrics.Metrics.successLogEntry(),
 					)
 				}
@@ -294,7 +276,7 @@ func (r *Runner) collectResults() {
 					}
 				}
 				r.L.Debugf("received result: %v", res)
-				r.resultsLog = append(r.resultsLog, res)
+				r.rawResultsLog = append(r.rawResultsLog, res)
 			}
 		}
 	}()

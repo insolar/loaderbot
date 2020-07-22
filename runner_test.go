@@ -122,14 +122,12 @@ func TestPrivateSystemRunnerIsSync(t *testing.T) {
 		StepRPS:         1,
 		TestTimeSec:     5,
 	}, &ControlAttackerMock{}, nil)
-
-	// decrease mock service latency so clients is blocked
 	r.controlled.Sleep = 30
 	_, _ = r.Run()
 	r.metricsMu.Lock()
 	defer r.metricsMu.Unlock()
-	for _, m := range r.stepMetrics {
-		require.Less(t, int(m.Rate), rps)
+	for _, m := range r.tickMetrics {
+		require.Less(t, int(m.Metrics.Rate), rps)
 	}
 }
 
@@ -148,7 +146,7 @@ func TestRunnerMaxRPSPrivateSystem(t *testing.T) {
 	r.controlled.Sleep = 300
 	maxRPS, err := r.Run()
 	require.NoError(t, err)
-	require.Greater(t, int(maxRPS), 69)
+	require.GreaterOrEqual(t, int(maxRPS), 69)
 	require.Less(t, int(maxRPS), 73)
 }
 
@@ -204,11 +202,11 @@ func TestDynamicLatency(t *testing.T) {
 		Attackers:       1000,
 		AttackerTimeout: 25,
 		StartRPS:        100,
-		StepDurationSec: 10,
+		StepDurationSec: 3,
 		StepRPS:         100,
 		TestTimeSec:     120,
 	}, &ControlAttackerMock{}, nil)
-	r.controlled.Sleep = 300
+	r.controlled.Sleep = 100
 	latCfg := ServiceLatencyChangeConfig{
 		R:             r,
 		Interval:      1 * time.Second,
