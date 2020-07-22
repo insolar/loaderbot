@@ -30,10 +30,6 @@ type TestData struct {
 	Data  interface{}
 }
 
-type nextMsg struct {
-	Step uint64
-}
-
 // Runner provides test context for attacking target with constant amount of runners with a schedule
 type Runner struct {
 	// Name of a runner
@@ -64,7 +60,7 @@ type Runner struct {
 	TimeoutCtx context.Context
 	cancel     context.CancelFunc
 	// next schedule chan to signal to attack
-	next chan nextMsg
+	next chan struct{}
 
 	attackersMu *sync.Mutex
 	attackers   []Attack
@@ -101,7 +97,7 @@ func NewRunner(cfg *RunnerConfig, a Attack, data *TestData) *Runner {
 		tickMetricsMu:     &sync.Mutex{},
 		tickMetrics:       make(map[uint64]*Metrics),
 		metrics:           NewMetrics(),
-		next:              make(chan nextMsg, DefaultScheduleQueueCapacity),
+		next:              make(chan struct{}, DefaultScheduleQueueCapacity),
 		rlMu:              &sync.Mutex{},
 		rl:                ratelimit.New(cfg.StartRPS),
 		attackersMu:       &sync.Mutex{},
@@ -210,10 +206,7 @@ func (r *Runner) schedule() {
 				r.rlMu.Lock()
 				r.rl.Take()
 				r.rlMu.Unlock()
-				currentStep := atomic.LoadUint64(&r.currentStep)
-				r.next <- nextMsg{
-					Step: currentStep,
-				}
+				r.next <- struct{}{}
 			}
 		}
 	}()

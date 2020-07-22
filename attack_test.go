@@ -16,7 +16,6 @@ func DefaultRunnerCfg() *RunnerConfig {
 		StepDurationSec: 5,
 		StepRPS:         5,
 		TestTimeSec:     60,
-		WaitBeforeSec:   0,
 	}
 }
 
@@ -33,9 +32,7 @@ func TestAttackSuccess(t *testing.T) {
 	go attack(r.attackers[0], r, wg)
 	wg.Wait()
 
-	r.next <- nextMsg{
-		Step: 1,
-	}
+	r.next <- struct{}{}
 	res := <-r.results
 	if got, want := res.doResult.Error, error(nil); got != want {
 		t.Fatalf("got %v want %v", got, want)
@@ -49,9 +46,7 @@ func TestAttackSuccess(t *testing.T) {
 	go asyncAttack(r.attackers[0], r, wg2)
 	wg2.Wait()
 
-	r.next <- nextMsg{
-		Step: 1,
-	}
+	r.next <- struct{}{}
 	res2 := <-r.results
 	if got, want := res2.doResult.Error, error(nil); got != want {
 		t.Fatalf("got %v want %v", got, want)
@@ -74,9 +69,7 @@ func TestAttackTimeout(t *testing.T) {
 	go attack(r.attackers[0], r, wg)
 	wg.Wait()
 
-	r.next <- nextMsg{
-		Step: 1,
-	}
+	r.next <- struct{}{}
 	res := <-r.results
 	if got, want := res.doResult.Error, errAttackDoTimedOut; got != want {
 		t.Fatalf("got %v want %v", got, want)
@@ -88,9 +81,7 @@ func TestAttackTimeout(t *testing.T) {
 	go attack(r.attackers[0], r, wg2)
 	wg2.Wait()
 
-	r.next <- nextMsg{
-		Step: 1,
-	}
+	r.next <- struct{}{}
 	res2 := <-r.results
 	if got, want := res2.doResult.Error, errAttackDoTimedOut; got != want {
 		t.Fatalf("got %v want %v", got, want)
