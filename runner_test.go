@@ -138,7 +138,7 @@ func TestRunnerMaxRPSPrivateSystem(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "",
 		SystemMode:      PrivateSystem,
-		Attackers:       1,
+		Attackers:       20,
 		AttackerTimeout: 1,
 		StartRPS:        rps,
 		StepDurationSec: 5,
@@ -148,7 +148,8 @@ func TestRunnerMaxRPSPrivateSystem(t *testing.T) {
 	r.controlled.Sleep = 300
 	maxRPS, err := r.Run()
 	require.NoError(t, err)
-	require.Equal(t, int(maxRPS), 3)
+	require.Greater(t, int(maxRPS), 69)
+	require.Less(t, int(maxRPS), 73)
 }
 
 func TestRunnerMaxRPSOpenWorldSystem(t *testing.T) {
@@ -163,7 +164,7 @@ func TestRunnerMaxRPSOpenWorldSystem(t *testing.T) {
 	}, &ControlAttackerMock{}, nil)
 	maxRPS, err := r.Run()
 	require.NoError(t, err)
-	require.Equal(t, 300, int(maxRPS))
+	require.GreaterOrEqual(t, int(maxRPS), 400)
 }
 
 func TestRunnerConstantLoad(t *testing.T) {
@@ -177,7 +178,8 @@ func TestRunnerConstantLoad(t *testing.T) {
 	r.controlled.Sleep = 300
 	maxRPS, err := r.Run()
 	require.NoError(t, err)
-	require.Equal(t, 30, int(maxRPS))
+	require.Greater(t, int(maxRPS), 30)
+	require.Less(t, int(maxRPS), 33)
 
 	r2 := NewRunner(&RunnerConfig{
 		Name:            "",
@@ -190,7 +192,8 @@ func TestRunnerConstantLoad(t *testing.T) {
 	r2.controlled.Sleep = 300
 	maxRPS2, err2 := r2.Run()
 	require.NoError(t, err2)
-	require.Equal(t, 30, int(maxRPS2))
+	require.Greater(t, int(maxRPS2), 30)
+	require.Less(t, int(maxRPS2), 33)
 }
 
 func TestDynamicLatency(t *testing.T) {

@@ -167,7 +167,7 @@ func (r *Runner) Run() (float64, error) {
 	r.handleShutdownSignal()
 	r.schedule()
 	r.rampUp()
-	r.updateMetrics()
+	r.tick()
 	r.collectResults()
 	<-r.TimeoutCtx.Done()
 	r.cancel()
@@ -188,8 +188,8 @@ func (r *Runner) maxRPS() float64 {
 	r.metricsMu.Lock()
 	defer r.metricsMu.Unlock()
 	rates := make([]float64, 0)
-	for _, m := range r.stepMetrics {
-		rates = append(rates, m.Rate)
+	for _, m := range r.asyncMetrics {
+		rates = append(rates, m.Metrics.Rate)
 	}
 	return MaxRPS(rates)
 }
@@ -230,25 +230,13 @@ func (r *Runner) rampUp() {
 				return
 			case <-ticker.C:
 				currentStep := atomic.LoadUint64(&r.currentStep)
+				atomic.AddUint64(&r.currentStep, 1)
 
 				r.metricsMu.Lock()
-				stepMetrics := r.stepMetrics[currentStep]
-				stepMetrics.update()
-				//r.L.Infof("STEP rate [%4f -> %v], perc: 50 [%v] 95 [%v], # requests [%d], # attackers [%d], %% success [%d]",
-				//	stepMetrics.Rate,
-				//	r.targetRPS,
-				//	stepMetrics.Latencies.P50,
-				//	stepMetrics.Latencies.P95,
-				//	stepMetrics.Requests,
-				//	len(r.attackers),
-				//	stepMetrics.successLogEntry(),
-				//)
 				r.targetRPS += r.Cfg.StepRPS
 				r.rlMu.Lock()
 				r.rl = ratelimit.New(r.targetRPS)
 				r.rlMu.Unlock()
-				atomic.AddUint64(&r.currentStep, 1)
-				r.stepMetrics[currentStep+1] = NewMetrics()
 				r.L.Infof("next step: step -> %d, rps -> %d", currentStep+1, r.targetRPS)
 				r.metricsMu.Unlock()
 				r.L.Infof("current active goroutines: %d", runtime.NumGoroutine())
@@ -268,13 +256,6 @@ func (r *Runner) collectResults() {
 				r.stepMetricsMu.Unlock()
 				return
 			case res := <-r.results:
-				currentStep := atomic.LoadUint64(&r.currentStep)
-				currentTick := atomic.LoadUint64(&r.currentTick)
-				r.metricsMu.Lock()
-				r.stepMetrics[currentStep].add(res)
-				r.tickMetrics[currentTick].add(res)
-				r.metricsMu.Unlock()
-
 				if _, ok := r.asyncMetrics[res.nextMsg.Tick]; !ok {
 					r.asyncMetrics[res.nextMsg.Tick] = &AsyncMetrics{
 						false,
@@ -319,8 +300,8 @@ func (r *Runner) collectResults() {
 	}()
 }
 
-// updateMetrics updates metrics every DefaultMetricsUpdateInterval
-func (r *Runner) updateMetrics() {
+// tick emit ticks for metrics
+func (r *Runner) tick() {
 	ticker := time.NewTicker(DefaultMetricsUpdateInterval)
 	go func() {
 		for {
@@ -328,22 +309,7 @@ func (r *Runner) updateMetrics() {
 			case <-r.TimeoutCtx.Done():
 				return
 			case <-ticker.C:
-				r.metricsMu.Lock()
-				currentTick := atomic.LoadUint64(&r.currentTick)
-				tickMetics := r.tickMetrics[currentTick]
-				tickMetics.update()
-				//r.L.Infof("rate [%4f -> %v], perc: 50 [%v] 95 [%v], # requests [%d], # attackers [%d], %% success [%d]",
-				//	tickMetics.Rate,
-				//	r.targetRPS,
-				//	tickMetics.Latencies.P50,
-				//	tickMetics.Latencies.P95,
-				//	tickMetics.Requests,
-				//	len(r.attackers),
-				//	tickMetics.successLogEntry(),
-				//)
 				atomic.AddUint64(&r.currentTick, 1)
-				r.tickMetrics[currentTick+1] = NewMetrics()
-				r.metricsMu.Unlock()
 			}
 		}
 	}()
