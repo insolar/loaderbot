@@ -1,3 +1,10 @@
+/*
+ * // Copyright 2020 Insolar Network Ltd.
+ * // All rights reserved.
+ * // This material is licensed under the Insolar License version 1.0,
+ * // available at https://github.com/insolar/assured-ledger/blob/master/LICENSE.md.
+ */
+
 package loaderbot
 
 import (
@@ -58,6 +65,8 @@ func ReadCsvFile(path string) (map[string]ChartLine, error) {
 	return requests, nil
 }
 
+// ReportScaling scaling chart, data must be written in csv in format:
+// ${handle_name},${network_nodes},${max_rps}
 func ReportScaling(inputCsv, outputPng string) {
 	lines, err := ReadCsvFile(inputCsv)
 	if err != nil {

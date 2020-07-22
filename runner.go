@@ -1,9 +1,15 @@
+/*
+ * // Copyright 2020 Insolar Network Ltd.
+ * // All rights reserved.
+ * // This material is licensed under the Insolar License version 1.0,
+ * // available at https://github.com/insolar/assured-ledger/blob/master/LICENSE.md.
+ */
+
 package loaderbot
 
 import (
 	"context"
 	"log"
-	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -77,13 +83,15 @@ type Runner struct {
 	controlled Controlled
 
 	// TestData data shared between attackers during test
-	TestData *TestData
+	TestData interface{}
 
 	L *Logger
 }
 
 // NewRunner creates new runner with constant amount of attackers by RunnerConfig
-func NewRunner(cfg *RunnerConfig, a Attack, data *TestData) *Runner {
+func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
+	cfg.Validate()
+	cfg.DefaultCfgValues()
 	r := &Runner{
 		Name:              cfg.Name,
 		Cfg:               cfg,
@@ -109,8 +117,6 @@ func NewRunner(cfg *RunnerConfig, a Attack, data *TestData) *Runner {
 		TestData:          data,
 		L:                 NewLogger(cfg).With("runner", cfg.Name),
 	}
-	r.validate()
-	r.DefaultCfgValues()
 	for i := 0; i < cfg.Attackers; i++ {
 		a := r.attackerPrototype.Clone(r)
 		if err := a.Setup(*r.Cfg); err != nil {
@@ -121,27 +127,6 @@ func NewRunner(cfg *RunnerConfig, a Attack, data *TestData) *Runner {
 	r.stepMetrics[0] = NewMetrics()
 	r.tickMetrics[0] = NewMetrics()
 	return r
-}
-
-func (r *Runner) validate() {
-	errors := r.Cfg.Validate()
-	if len(errors) > 0 {
-		for _, e := range errors {
-			r.L.Error(e)
-		}
-		os.Exit(1)
-	}
-}
-
-func (r *Runner) DefaultCfgValues() {
-	if r.Cfg.SystemMode == OpenWorldSystem {
-		// attacker will spawn goroutines for requests anyway, in this mode we are non-blocking
-		r.Cfg.Attackers = 1
-	}
-	// constant load
-	if r.Cfg.StepRPS == 0 {
-		r.Cfg.StepDurationSec = 10
-	}
 }
 
 // Run runs the test
@@ -212,7 +197,7 @@ func (r *Runner) schedule() {
 	}()
 }
 
-// rampUp changes ratelimit options on the run, increasing by step to target rps
+// rampUp changes ratelimit options on the run, increasing rate by StepRPS and collecting step-aggregated metrics
 func (r *Runner) rampUp() {
 	ticker := time.NewTicker(time.Duration(r.Cfg.StepDurationSec) * time.Second)
 	go func() {
@@ -285,6 +270,7 @@ func (r *Runner) collectResults() {
 	}()
 }
 
+// updateMetrics updates metrics every DefaultMetricsUpdateInterval
 func (r *Runner) updateMetrics() {
 	ticker := time.NewTicker(DefaultMetricsUpdateInterval)
 	go func() {

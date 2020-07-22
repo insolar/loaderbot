@@ -1,3 +1,10 @@
+/*
+ * // Copyright 2020 Insolar Network Ltd.
+ * // All rights reserved.
+ * // This material is licensed under the Insolar License version 1.0,
+ * // available at https://github.com/insolar/assured-ledger/blob/master/LICENSE.md.
+ */
+
 package loaderbot
 
 import (
@@ -84,7 +91,7 @@ func TestRunnerFailOnFirstError(t *testing.T) {
 	require.Equal(t, true, r.Failed)
 }
 
-func TestRunnerHangedRequestsAfterTimeoutNoErr(t *testing.T) {
+func TestRunnerHangedRequestsAfterTimeoutNoError(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:             "",
 		SystemMode:       PrivateSystem,
@@ -96,8 +103,8 @@ func TestRunnerHangedRequestsAfterTimeoutNoErr(t *testing.T) {
 		TestTimeSec:      2,
 		FailOnFirstError: true,
 	}, &ControlAttackerMock{}, nil)
-	// request still hangs when the test ends, but it's ok
-	r.controlled.Sleep = 3000
+	// request still hangs when the test ends, but it's not an error because test has ended
+	r.controlled.Sleep = 5000
 	_, err := r.Run()
 	require.NoError(t, err)
 	require.Empty(t, r.uniqErrors)

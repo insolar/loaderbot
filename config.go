@@ -1,4 +1,16 @@
+/*
+ * // Copyright 2020 Insolar Network Ltd.
+ * // All rights reserved.
+ * // This material is licensed under the Insolar License version 1.0,
+ * // available at https://github.com/insolar/assured-ledger/blob/master/LICENSE.md.
+ */
+
 package loaderbot
+
+import (
+	"log"
+	"os"
+)
 
 type SystemMode int
 
@@ -16,20 +28,24 @@ type RunnerConfig struct {
 	// SystemMode PrivateSystem | OpenWorldSystem
 	// PrivateSystem:
 	// if application under test is a private system sync runner attackers will wait for response
+	// in case your system is private and you know how many sync clients can act
 	// OpenWorldSystem:
 	// if application under test is an open world system async runner attackers will fire requests without waiting
-	// it creates some inaccuracy in results, so you can check latencies for service metrics,
+	// it creates some inaccuracy in results, so you can check latencies using service metrics to be precise,
 	// but the test will be more realistic from clients point of view
 	SystemMode SystemMode
-	// Attackers constant amount of attackers
+	// Attackers constant amount of attackers,
+	// if SystemMode is "OpenWorldSystem", attackers will be spawn on demand to meet rps
 	Attackers int
 	// AttackerTimeout timeout of attacker
 	AttackerTimeout int
-	// StartRPS start amount of requests per second
+	// StartRPS initial requests per seconds rate
 	StartRPS int
 	// StepDurationSec duration of step in which rps is increased by StepRPS
 	StepDurationSec int
-	// StepRPS amount of requests per second which will be added in next step
+	// StepRPS amount of requests per second which will be added in next step,
+	// if StepRPS = 0 rate is constant, default StepDurationSec is 30 sec is applied,
+	// just to keep 30s aggregation metrics
 	StepRPS int
 	// TestTimeSec test timeout
 	TestTimeSec int
@@ -37,9 +53,9 @@ type RunnerConfig struct {
 	WaitBeforeSec int
 	// Dumptransport dump http requests to stdout
 	DumpTransport bool
-	// GoroutinesDump
+	// GoroutinesDump dumps goroutines stack for debug purposes
 	GoroutinesDump bool
-	// FailOnFirstError fails on first error
+	// FailOnFirstError fails test on first error
 	FailOnFirstError bool
 	// LogLevel debug|info, etc.
 	LogLevel string
@@ -47,8 +63,35 @@ type RunnerConfig struct {
 	LogEncoding string
 }
 
-// validate checks all settings and returns a list of strings with problems.
-func (c RunnerConfig) Validate() (list []string) {
+func (c *RunnerConfig) Validate() {
+	errors := c.validate()
+	if len(errors) > 0 {
+		for _, e := range errors {
+			log.Print(e)
+		}
+		os.Exit(1)
+	}
+}
+
+func (c *RunnerConfig) DefaultCfgValues() {
+	if c.SystemMode == OpenWorldSystem {
+		// attacker will spawn goroutines for requests anyway, in this mode we are non-blocking
+		c.Attackers = 1
+	}
+	// constant load
+	if c.StepRPS == 0 {
+		c.StepDurationSec = 10
+	}
+	if c.LogLevel == "" {
+		c.LogLevel = "info"
+	}
+	if c.LogEncoding == "" {
+		c.LogEncoding = "console"
+	}
+}
+
+// Validate checks all settings and returns a list of strings with problems.
+func (c RunnerConfig) validate() (list []string) {
 	if c.Attackers <= 0 && c.SystemMode == PrivateSystem {
 		list = append(list, "please set attackers > 0")
 	}
