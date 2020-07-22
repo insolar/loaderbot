@@ -129,8 +129,7 @@ func (m *Metrics) add(r AttackResult) {
 }
 
 // update computes derived summary Metrics which don't need to be Run on every add call.
-func (m *Metrics) update(r *Runner) {
-	m.TargetRate = float64(r.targetRPS)
+func (m *Metrics) update() {
 	fRequests := float64(m.Requests)
 	m.Duration = m.Latest.Sub(m.Earliest)
 	if secs := m.Duration.Seconds(); secs > 0 {

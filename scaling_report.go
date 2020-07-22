@@ -58,7 +58,7 @@ func ReadCsvFile(path string) (map[string]ChartLine, error) {
 		if err != nil {
 			return nil, err
 		}
-		// Max RPS
+		// Max TargetRPS
 		line.YValues = append(line.YValues, yValue)
 		requests[methodName] = line
 	}
@@ -100,7 +100,7 @@ func RenderChart(requests map[string]ChartLine, fileName string) error {
 			Name: "VE count",
 		},
 		YAxis: chart.YAxis{
-			Name: "Max RPS",
+			Name: "Max TargetRPS",
 		},
 		Series: series,
 	}

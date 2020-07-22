@@ -36,6 +36,18 @@ type TestData struct {
 	Data  interface{}
 }
 
+type AsyncMetrics struct {
+	Reported bool
+	Samples  []AttackResult
+	Metrics  *Metrics
+}
+
+type nextMsg struct {
+	TargetRPS uint64
+	Step      uint64
+	Tick      uint64
+}
+
 // Runner provides test context for attacking target with constant amount of runners with a schedule
 type Runner struct {
 	// Name of a runner
@@ -56,6 +68,8 @@ type Runner struct {
 	tickMetricsMu *sync.Mutex
 	tickMetrics   map[uint64]*Metrics
 
+	asyncMetrics map[uint64]*AsyncMetrics
+
 	rlMu *sync.Mutex
 	rl   ratelimit.Limiter
 
@@ -66,7 +80,7 @@ type Runner struct {
 	TimeoutCtx context.Context
 	cancel     context.CancelFunc
 	// next schedule chan to signal to attack
-	next chan struct{}
+	next chan nextMsg
 
 	attackersMu *sync.Mutex
 	attackers   []Attack
@@ -105,13 +119,14 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		tickMetricsMu:     &sync.Mutex{},
 		tickMetrics:       make(map[uint64]*Metrics),
 		metrics:           NewMetrics(),
-		next:              make(chan struct{}, DefaultScheduleQueueCapacity),
+		next:              make(chan nextMsg, DefaultScheduleQueueCapacity),
 		rlMu:              &sync.Mutex{},
 		rl:                ratelimit.New(cfg.StartRPS),
 		attackersMu:       &sync.Mutex{},
 		attackers:         make([]Attack, 0),
 		results:           make(chan AttackResult, DefaultResultsQueueCapacity),
 		resultsLog:        make([]AttackResult, 0),
+		asyncMetrics:      make(map[uint64]*AsyncMetrics),
 		uniqErrors:        make(map[string]int),
 		controlled:        Controlled{},
 		TestData:          data,
@@ -191,7 +206,15 @@ func (r *Runner) schedule() {
 				r.rlMu.Lock()
 				r.rl.Take()
 				r.rlMu.Unlock()
-				r.next <- struct{}{}
+				currentStep := atomic.LoadUint64(&r.currentStep)
+				currentTick := atomic.LoadUint64(&r.currentTick)
+				r.metricsMu.Lock()
+				r.next <- nextMsg{
+					TargetRPS: uint64(r.targetRPS),
+					Step:      currentStep,
+					Tick:      currentTick,
+				}
+				r.metricsMu.Unlock()
 			}
 		}
 	}()
@@ -210,16 +233,16 @@ func (r *Runner) rampUp() {
 
 				r.metricsMu.Lock()
 				stepMetrics := r.stepMetrics[currentStep]
-				stepMetrics.update(r)
-				r.L.Infof("STEP rate [%4f -> %v], perc: 50 [%v] 95 [%v], # requests [%d], # attackers [%d], %% success [%d]",
-					stepMetrics.Rate,
-					r.targetRPS,
-					stepMetrics.Latencies.P50,
-					stepMetrics.Latencies.P95,
-					stepMetrics.Requests,
-					len(r.attackers),
-					stepMetrics.successLogEntry(),
-				)
+				stepMetrics.update()
+				//r.L.Infof("STEP rate [%4f -> %v], perc: 50 [%v] 95 [%v], # requests [%d], # attackers [%d], %% success [%d]",
+				//	stepMetrics.Rate,
+				//	r.targetRPS,
+				//	stepMetrics.Latencies.P50,
+				//	stepMetrics.Latencies.P95,
+				//	stepMetrics.Requests,
+				//	len(r.attackers),
+				//	stepMetrics.successLogEntry(),
+				//)
 				r.targetRPS += r.Cfg.StepRPS
 				r.rlMu.Lock()
 				r.rl = ratelimit.New(r.targetRPS)
@@ -246,14 +269,40 @@ func (r *Runner) collectResults() {
 				return
 			case res := <-r.results:
 				currentStep := atomic.LoadUint64(&r.currentStep)
-				r.metricsMu.Lock()
-				r.stepMetrics[currentStep].add(res)
-				r.metricsMu.Unlock()
-
 				currentTick := atomic.LoadUint64(&r.currentTick)
 				r.metricsMu.Lock()
+				r.stepMetrics[currentStep].add(res)
 				r.tickMetrics[currentTick].add(res)
 				r.metricsMu.Unlock()
+
+				if _, ok := r.asyncMetrics[res.nextMsg.Tick]; !ok {
+					r.asyncMetrics[res.nextMsg.Tick] = &AsyncMetrics{
+						false,
+						make([]AttackResult, 0),
+						NewMetrics(),
+					}
+				}
+				currentTickMetrics := r.asyncMetrics[res.nextMsg.Tick]
+				currentTickMetrics.Samples = append(currentTickMetrics.Samples, res)
+				//r.L.Infof("len of samples for tick %d: %d", res.nextMsg.Tick, len(currentTickMetrics.Samples))
+				if len(currentTickMetrics.Samples) >= int(currentTickMetrics.Samples[0].nextMsg.TargetRPS) && !currentTickMetrics.Reported {
+					r.L.Infof("last msg: %v", res.nextMsg)
+					currentTickMetrics.Reported = true
+					r.L.Infof("complete metrics for tick: %d", res.nextMsg.Tick)
+					for _, s := range currentTickMetrics.Samples {
+						currentTickMetrics.Metrics.add(s)
+					}
+					currentTickMetrics.Metrics.update()
+					r.L.Infof("rate [%4f -> %v], perc: 50 [%v] 95 [%v], # requests [%d], # attackers [%d], %% success [%d]",
+						currentTickMetrics.Metrics.Rate,
+						res.nextMsg.TargetRPS,
+						currentTickMetrics.Metrics.Latencies.P50,
+						currentTickMetrics.Metrics.Latencies.P95,
+						currentTickMetrics.Metrics.Requests,
+						len(r.attackers),
+						currentTickMetrics.Metrics.successLogEntry(),
+					)
+				}
 
 				if res.doResult.Error != nil {
 					r.uniqErrors[res.doResult.Error.Error()] += 1
@@ -282,16 +331,16 @@ func (r *Runner) updateMetrics() {
 				r.metricsMu.Lock()
 				currentTick := atomic.LoadUint64(&r.currentTick)
 				tickMetics := r.tickMetrics[currentTick]
-				tickMetics.update(r)
-				r.L.Infof("rate [%4f -> %v], perc: 50 [%v] 95 [%v], # requests [%d], # attackers [%d], %% success [%d]",
-					tickMetics.Rate,
-					r.targetRPS,
-					tickMetics.Latencies.P50,
-					tickMetics.Latencies.P95,
-					tickMetics.Requests,
-					len(r.attackers),
-					tickMetics.successLogEntry(),
-				)
+				tickMetics.update()
+				//r.L.Infof("rate [%4f -> %v], perc: 50 [%v] 95 [%v], # requests [%d], # attackers [%d], %% success [%d]",
+				//	tickMetics.Rate,
+				//	r.targetRPS,
+				//	tickMetics.Latencies.P50,
+				//	tickMetics.Latencies.P95,
+				//	tickMetics.Requests,
+				//	len(r.attackers),
+				//	tickMetics.successLogEntry(),
+				//)
 				atomic.AddUint64(&r.currentTick, 1)
 				r.tickMetrics[currentTick+1] = NewMetrics()
 				r.metricsMu.Unlock()

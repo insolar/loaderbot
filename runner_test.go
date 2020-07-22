@@ -198,18 +198,18 @@ func TestDynamicLatency(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "",
 		SystemMode:      OpenWorldSystem,
-		Attackers:       100,
+		Attackers:       1000,
 		AttackerTimeout: 25,
 		StartRPS:        100,
-		StepDurationSec: 5,
-		StepRPS:         50,
+		StepDurationSec: 10,
+		StepRPS:         100,
 		TestTimeSec:     120,
 	}, &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 300
 	latCfg := ServiceLatencyChangeConfig{
 		R:             r,
 		Interval:      1 * time.Second,
-		LatencyStepMs: 1000,
+		LatencyStepMs: 300,
 		Times:         30,
 		LatencyFlag:   increaseLatency,
 	}

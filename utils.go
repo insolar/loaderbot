@@ -50,7 +50,7 @@ func (r *Runner) reportEvery100Req() {
 		for _, r := range r.resultsLog[len(r.resultsLog)-100:] {
 			m.add(r)
 		}
-		m.update(r)
+		m.update()
 		r.L.Infof("DEMAND rate [%4f -> %v], perc: 50 [%v] 95 [%v], # requests [%d], # attackers [%d], %% success [%d]",
 			m.Rate,
 			r.targetRPS,
