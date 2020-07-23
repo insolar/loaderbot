@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"syscall"
-	"time"
 )
 
 var (
@@ -29,6 +28,7 @@ func (r *Runner) handleShutdownSignal() {
 		case <-r.TimeoutCtx.Done():
 			return
 		case <-sigs:
+			r.cancel()
 			r.L.Infof("exit signal received, exiting")
 			if r.Cfg.GoroutinesDump {
 				buf := make([]byte, 1<<20)
@@ -40,43 +40,7 @@ func (r *Runner) handleShutdownSignal() {
 	}()
 }
 
-// nolint
-// debug function to check metric correctness
-func (r *Runner) reportEvery100Req() {
-	if len(r.resultsLog)%100 == 0 {
-		r.metricsMu.Lock()
-		defer r.metricsMu.Unlock()
-		m := NewMetrics()
-		for _, r := range r.resultsLog[len(r.resultsLog)-100:] {
-			m.add(r)
-		}
-		m.update(r)
-		r.L.Infof("DEMAND rate [%4f -> %v], perc: 50 [%v] 95 [%v], # requests [%d], # attackers [%d], %% success [%d]",
-			m.Rate,
-			r.targetRPS,
-			m.Latencies.P50,
-			m.Latencies.P95,
-			m.Requests,
-			len(r.attackers),
-			m.successLogEntry(),
-		)
-	}
-}
-
-func NewImmediateTicker(repeat time.Duration) *time.Ticker {
-	ticker := time.NewTicker(repeat)
-	oc := ticker.C
-	nc := make(chan time.Time, 1)
-	go func() {
-		nc <- time.Now()
-		for tm := range oc {
-			nc <- tm
-		}
-	}()
-	ticker.C = nc
-	return ticker
-}
-
+// CreateFileOrAppend creates file if not exists or opens in append mode, used for metrics between tests
 func CreateFileOrAppend(fname string) *os.File {
 	var file *os.File
 	fpath, _ := filepath.Abs(fname)
@@ -86,6 +50,18 @@ func CreateFileOrAppend(fname string) *os.File {
 	} else {
 		file, err = os.OpenFile(fname, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	}
+	if err != nil {
+		log.Fatal(err)
+	}
+	return file
+}
+
+// CreateFileOrReplace creates new file every time, used for files with static name
+// content of which must not contain data from different tests
+func CreateFileOrReplace(fname string) *os.File {
+	fpath, _ := filepath.Abs(fname)
+	_ = os.Remove(fpath)
+	file, err := os.Create(fpath)
 	if err != nil {
 		log.Fatal(err)
 	}

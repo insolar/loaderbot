@@ -16,7 +16,7 @@ import (
 
 func DefaultRunnerCfg() *RunnerConfig {
 	return &RunnerConfig{
-		Name:            "abc",
+		Name:            "test_runner",
 		Attackers:       1,
 		AttackerTimeout: 1,
 		StartRPS:        20,
@@ -39,7 +39,10 @@ func TestAttackSuccess(t *testing.T) {
 	go attack(r.attackers[0], r, wg)
 	wg.Wait()
 
-	r.next <- struct{}{}
+	r.next <- nextMsg{
+		Step: 1,
+		Tick: 1,
+	}
 	res := <-r.results
 	if got, want := res.doResult.Error, error(nil); got != want {
 		t.Fatalf("got %v want %v", got, want)
@@ -53,7 +56,10 @@ func TestAttackSuccess(t *testing.T) {
 	go asyncAttack(r.attackers[0], r, wg2)
 	wg2.Wait()
 
-	r.next <- struct{}{}
+	r.next <- nextMsg{
+		Step: 1,
+		Tick: 1,
+	}
 	res2 := <-r.results
 	if got, want := res2.doResult.Error, error(nil); got != want {
 		t.Fatalf("got %v want %v", got, want)
@@ -76,7 +82,10 @@ func TestAttackTimeout(t *testing.T) {
 	go attack(r.attackers[0], r, wg)
 	wg.Wait()
 
-	r.next <- struct{}{}
+	r.next <- nextMsg{
+		Step: 1,
+		Tick: 1,
+	}
 	res := <-r.results
 	if got, want := res.doResult.Error, errAttackDoTimedOut; got != want {
 		t.Fatalf("got %v want %v", got, want)
@@ -88,7 +97,10 @@ func TestAttackTimeout(t *testing.T) {
 	go attack(r.attackers[0], r, wg2)
 	wg2.Wait()
 
-	r.next <- struct{}{}
+	r.next <- nextMsg{
+		Step: 1,
+		Tick: 1,
+	}
 	res2 := <-r.results
 	if got, want := res2.doResult.Error, errAttackDoTimedOut; got != want {
 		t.Fatalf("got %v want %v", got, want)

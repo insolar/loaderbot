@@ -16,7 +16,7 @@ import (
 
 func TestPrivateSystemRunnerSuccess(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
-		Name:            "",
+		Name:            "test_runner",
 		Attackers:       10,
 		AttackerTimeout: 1,
 		StartRPS:        8,
@@ -30,7 +30,7 @@ func TestPrivateSystemRunnerSuccess(t *testing.T) {
 
 func TestOpenWorldSystemRunnerSuccess(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
-		Name:            "",
+		Name:            "test_runner",
 		SystemMode:      OpenWorldSystem,
 		Attackers:       300,
 		AttackerTimeout: 1,
@@ -45,7 +45,7 @@ func TestOpenWorldSystemRunnerSuccess(t *testing.T) {
 
 func TestMultipleRunnersSuccess(t *testing.T) {
 	cfg := &RunnerConfig{
-		Name:            "",
+		Name:            "test_runner",
 		Attackers:       1,
 		AttackerTimeout: 1,
 		StartRPS:        1,
@@ -70,7 +70,7 @@ func TestMultipleRunnersSuccess(t *testing.T) {
 
 func TestRunnerFailOnFirstError(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
-		Name:             "",
+		Name:             "test_runner",
 		Attackers:        10,
 		AttackerTimeout:  1,
 		StartRPS:         1,
@@ -93,7 +93,7 @@ func TestRunnerFailOnFirstError(t *testing.T) {
 
 func TestRunnerHangedRequestsAfterTimeoutNoError(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
-		Name:             "",
+		Name:             "test_runner",
 		SystemMode:       PrivateSystem,
 		Attackers:        1,
 		AttackerTimeout:  5,
@@ -113,7 +113,7 @@ func TestRunnerHangedRequestsAfterTimeoutNoError(t *testing.T) {
 func TestPrivateSystemRunnerIsSync(t *testing.T) {
 	rps := 100
 	r := NewRunner(&RunnerConfig{
-		Name:            "",
+		Name:            "test_runner",
 		SystemMode:      PrivateSystem,
 		Attackers:       1,
 		AttackerTimeout: 1,
@@ -122,23 +122,21 @@ func TestPrivateSystemRunnerIsSync(t *testing.T) {
 		StepRPS:         1,
 		TestTimeSec:     5,
 	}, &ControlAttackerMock{}, nil)
-
-	// decrease mock service latency so clients is blocked
 	r.controlled.Sleep = 30
 	_, _ = r.Run()
 	r.metricsMu.Lock()
 	defer r.metricsMu.Unlock()
-	for _, m := range r.stepMetrics {
-		require.Less(t, int(m.Rate), rps)
+	for _, m := range r.tickMetrics {
+		require.Less(t, int(m.Metrics.Rate), rps)
 	}
 }
 
 func TestRunnerMaxRPSPrivateSystem(t *testing.T) {
 	rps := 100
 	r := NewRunner(&RunnerConfig{
-		Name:            "",
+		Name:            "test_runner",
 		SystemMode:      PrivateSystem,
-		Attackers:       1,
+		Attackers:       20,
 		AttackerTimeout: 1,
 		StartRPS:        rps,
 		StepDurationSec: 5,
@@ -148,12 +146,13 @@ func TestRunnerMaxRPSPrivateSystem(t *testing.T) {
 	r.controlled.Sleep = 300
 	maxRPS, err := r.Run()
 	require.NoError(t, err)
-	require.Equal(t, int(maxRPS), 3)
+	require.GreaterOrEqual(t, int(maxRPS), 69)
+	require.Less(t, int(maxRPS), 73)
 }
 
 func TestRunnerMaxRPSOpenWorldSystem(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
-		Name:            "",
+		Name:            "test_runner",
 		SystemMode:      OpenWorldSystem,
 		AttackerTimeout: 1,
 		StartRPS:        100,
@@ -163,12 +162,12 @@ func TestRunnerMaxRPSOpenWorldSystem(t *testing.T) {
 	}, &ControlAttackerMock{}, nil)
 	maxRPS, err := r.Run()
 	require.NoError(t, err)
-	require.Equal(t, 300, int(maxRPS))
+	require.GreaterOrEqual(t, int(maxRPS), 400)
 }
 
 func TestRunnerConstantLoad(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
-		Name:            "",
+		Name:            "test_runner",
 		SystemMode:      OpenWorldSystem,
 		AttackerTimeout: 1,
 		StartRPS:        30,
@@ -177,10 +176,11 @@ func TestRunnerConstantLoad(t *testing.T) {
 	r.controlled.Sleep = 300
 	maxRPS, err := r.Run()
 	require.NoError(t, err)
-	require.Equal(t, 30, int(maxRPS))
+	require.Greater(t, int(maxRPS), 30)
+	require.Less(t, int(maxRPS), 33)
 
 	r2 := NewRunner(&RunnerConfig{
-		Name:            "",
+		Name:            "test_runner",
 		SystemMode:      PrivateSystem,
 		Attackers:       300,
 		AttackerTimeout: 1,
@@ -190,26 +190,27 @@ func TestRunnerConstantLoad(t *testing.T) {
 	r2.controlled.Sleep = 300
 	maxRPS2, err2 := r2.Run()
 	require.NoError(t, err2)
-	require.Equal(t, 30, int(maxRPS2))
+	require.Greater(t, int(maxRPS2), 30)
+	require.Less(t, int(maxRPS2), 33)
 }
 
 func TestDynamicLatency(t *testing.T) {
 	t.Skip("only manual run")
 	r := NewRunner(&RunnerConfig{
-		Name:            "",
+		Name:            "test_runner",
 		SystemMode:      OpenWorldSystem,
-		Attackers:       100,
+		Attackers:       1000,
 		AttackerTimeout: 25,
 		StartRPS:        100,
-		StepDurationSec: 5,
-		StepRPS:         50,
+		StepDurationSec: 3,
+		StepRPS:         100,
 		TestTimeSec:     120,
 	}, &ControlAttackerMock{}, nil)
-	r.controlled.Sleep = 300
+	r.controlled.Sleep = 100
 	latCfg := ServiceLatencyChangeConfig{
 		R:             r,
 		Interval:      1 * time.Second,
-		LatencyStepMs: 1000,
+		LatencyStepMs: 300,
 		Times:         30,
 		LatencyFlag:   increaseLatency,
 	}

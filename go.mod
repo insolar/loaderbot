@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
+	github.com/google/uuid v1.1.1
 	github.com/ory/go-acc v0.2.3 // indirect
 	github.com/streadway/quantile v0.0.0-20150917103942-b0c588724d25
 	github.com/stretchr/testify v1.6.1
@@ -13,5 +14,5 @@ require (
 	go.uber.org/zap v1.10.0
 	golang.org/x/image v0.0.0-20200618115811-c13761719519 // indirect
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
-	golang.org/x/tools v0.0.0-20200721032237-77f530d86f9a // indirect
+	golang.org/x/tools v0.0.0-20200723000907-a7c6fd066f6d // indirect
 )
