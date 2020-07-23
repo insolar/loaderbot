@@ -16,7 +16,7 @@ import (
 
 func DefaultRunnerCfg() *RunnerConfig {
 	return &RunnerConfig{
-		Name:            "abc",
+		Name:            "test_runner",
 		Attackers:       1,
 		AttackerTimeout: 1,
 		StartRPS:        20,

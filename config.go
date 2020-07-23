@@ -5,6 +5,7 @@
  * // available at https://github.com/insolar/assured-ledger/blob/master/LICENSE.md.
  */
 
+//go:generate stringer -type=SystemMode
 package loaderbot
 
 import (
@@ -92,6 +93,9 @@ func (c *RunnerConfig) DefaultCfgValues() {
 
 // Validate checks all settings and returns a list of strings with problems.
 func (c RunnerConfig) validate() (list []string) {
+	if c.Name == "" {
+		list = append(list, "please set runner name")
+	}
 	if c.Attackers <= 0 && c.SystemMode == PrivateSystem {
 		list = append(list, "please set attackers > 0")
 	}

@@ -16,7 +16,7 @@ import (
 
 func TestPrivateSystemRunnerSuccess(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
-		Name:            "",
+		Name:            "test_runner",
 		Attackers:       10,
 		AttackerTimeout: 1,
 		StartRPS:        8,
@@ -30,7 +30,7 @@ func TestPrivateSystemRunnerSuccess(t *testing.T) {
 
 func TestOpenWorldSystemRunnerSuccess(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
-		Name:            "",
+		Name:            "test_runner",
 		SystemMode:      OpenWorldSystem,
 		Attackers:       300,
 		AttackerTimeout: 1,
@@ -45,7 +45,7 @@ func TestOpenWorldSystemRunnerSuccess(t *testing.T) {
 
 func TestMultipleRunnersSuccess(t *testing.T) {
 	cfg := &RunnerConfig{
-		Name:            "",
+		Name:            "test_runner",
 		Attackers:       1,
 		AttackerTimeout: 1,
 		StartRPS:        1,
@@ -70,7 +70,7 @@ func TestMultipleRunnersSuccess(t *testing.T) {
 
 func TestRunnerFailOnFirstError(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
-		Name:             "",
+		Name:             "test_runner",
 		Attackers:        10,
 		AttackerTimeout:  1,
 		StartRPS:         1,
@@ -93,7 +93,7 @@ func TestRunnerFailOnFirstError(t *testing.T) {
 
 func TestRunnerHangedRequestsAfterTimeoutNoError(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
-		Name:             "",
+		Name:             "test_runner",
 		SystemMode:       PrivateSystem,
 		Attackers:        1,
 		AttackerTimeout:  5,
@@ -113,7 +113,7 @@ func TestRunnerHangedRequestsAfterTimeoutNoError(t *testing.T) {
 func TestPrivateSystemRunnerIsSync(t *testing.T) {
 	rps := 100
 	r := NewRunner(&RunnerConfig{
-		Name:            "",
+		Name:            "test_runner",
 		SystemMode:      PrivateSystem,
 		Attackers:       1,
 		AttackerTimeout: 1,
@@ -134,7 +134,7 @@ func TestPrivateSystemRunnerIsSync(t *testing.T) {
 func TestRunnerMaxRPSPrivateSystem(t *testing.T) {
 	rps := 100
 	r := NewRunner(&RunnerConfig{
-		Name:            "",
+		Name:            "test_runner",
 		SystemMode:      PrivateSystem,
 		Attackers:       20,
 		AttackerTimeout: 1,
@@ -152,7 +152,7 @@ func TestRunnerMaxRPSPrivateSystem(t *testing.T) {
 
 func TestRunnerMaxRPSOpenWorldSystem(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
-		Name:            "",
+		Name:            "test_runner",
 		SystemMode:      OpenWorldSystem,
 		AttackerTimeout: 1,
 		StartRPS:        100,
@@ -167,7 +167,7 @@ func TestRunnerMaxRPSOpenWorldSystem(t *testing.T) {
 
 func TestRunnerConstantLoad(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
-		Name:            "",
+		Name:            "test_runner",
 		SystemMode:      OpenWorldSystem,
 		AttackerTimeout: 1,
 		StartRPS:        30,
@@ -180,7 +180,7 @@ func TestRunnerConstantLoad(t *testing.T) {
 	require.Less(t, int(maxRPS), 33)
 
 	r2 := NewRunner(&RunnerConfig{
-		Name:            "",
+		Name:            "test_runner",
 		SystemMode:      PrivateSystem,
 		Attackers:       300,
 		AttackerTimeout: 1,
@@ -197,7 +197,7 @@ func TestRunnerConstantLoad(t *testing.T) {
 func TestDynamicLatency(t *testing.T) {
 	t.Skip("only manual run")
 	r := NewRunner(&RunnerConfig{
-		Name:            "",
+		Name:            "test_runner",
 		SystemMode:      OpenWorldSystem,
 		Attackers:       1000,
 		AttackerTimeout: 25,

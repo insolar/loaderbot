@@ -9,12 +9,16 @@ package loaderbot
 
 import (
 	"context"
+	"encoding/csv"
+	"fmt"
 	"log"
 	"runtime"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/google/uuid"
 	"go.uber.org/ratelimit"
 )
 
@@ -22,6 +26,11 @@ const (
 	DefaultMetricsUpdateInterval = 1 * time.Second
 	DefaultScheduleQueueCapacity = 10000
 	DefaultResultsQueueCapacity  = 10000
+	MetricsLogFile               = "requests_%s_%s_%s.log"
+)
+
+var (
+	CsvHeader = []string{"RequestLabel", "BeginTimeNano", "EndTimeNano", "Elapsed", "StatusCode", "Error"}
 )
 
 // Controlled struct for adding test vars
@@ -36,7 +45,7 @@ type TestData struct {
 	Data  interface{}
 }
 
-type AsyncMetrics struct {
+type TickMetrics struct {
 	Reported bool
 	Samples  []AttackResult
 	Metrics  *Metrics
@@ -64,7 +73,7 @@ type Runner struct {
 	currentTick uint64
 	metricsMu   *sync.Mutex
 	// metrics for every tick
-	tickMetrics map[uint64]*AsyncMetrics
+	tickMetrics map[uint64]*TickMetrics
 
 	rlMu *sync.Mutex
 	rl   ratelimit.Limiter
@@ -80,7 +89,8 @@ type Runner struct {
 
 	results chan AttackResult
 	// raw request results log
-	rawResultsLog []AttackResult
+	rawResultsLog  []AttackResult
+	metricsLogFile *csv.Writer
 	// uniq error messages
 	uniqErrors map[string]int
 	// Failed means there some errors in test
@@ -110,8 +120,9 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		attackers:         make([]Attack, 0),
 		results:           make(chan AttackResult, DefaultResultsQueueCapacity),
 		rawResultsLog:     make([]AttackResult, 0),
-		tickMetrics:       make(map[uint64]*AsyncMetrics),
+		tickMetrics:       make(map[uint64]*TickMetrics),
 		uniqErrors:        make(map[string]int),
+		metricsLogFile:    csv.NewWriter(CreateFileOrReplace(metricLogFilename(cfg.Name))),
 		controlled:        Controlled{},
 		TestData:          data,
 		L:                 NewLogger(cfg).With("runner", cfg.Name),
@@ -123,25 +134,28 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		}
 		r.attackers = append(r.attackers, a)
 	}
+	_ = r.metricsLogFile.Write(CsvHeader)
 	return r
 }
 
 // Run runs the test
 func (r *Runner) Run() (float64, error) {
-	r.L.Infof("waiting for %d seconds before start", r.Cfg.WaitBeforeSec)
-	time.Sleep(time.Duration(r.Cfg.WaitBeforeSec) * time.Second)
-	r.L.Infof("runner started, mode: %s", r.Cfg.SystemMode)
+	if r.Cfg.WaitBeforeSec > 0 {
+		r.L.Infof("waiting for %d seconds before start", r.Cfg.WaitBeforeSec)
+		time.Sleep(time.Duration(r.Cfg.WaitBeforeSec) * time.Second)
+	}
+	r.L.Infof("runner started, mode: %s", r.Cfg.SystemMode.String())
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.TestTimeSec)*time.Second)
 	r.TimeoutCtx = ctx
 	r.cancel = cancel
 	wg := &sync.WaitGroup{}
 	wg.Add(len(r.attackers))
 	for atkIdx, attacker := range r.attackers {
-		r.L.Infof("starting attacker: %d", atkIdx)
 		switch r.Cfg.SystemMode {
 		case OpenWorldSystem:
 			go asyncAttack(attacker, r, wg)
 		case PrivateSystem:
+			r.L.Infof("starting attacker: %d", atkIdx)
 			go attack(attacker, r, wg)
 		}
 	}
@@ -157,23 +171,6 @@ func (r *Runner) Run() (float64, error) {
 	maxRPS := r.maxRPS()
 	r.L.Infof("max rps: %.2f", maxRPS)
 	return maxRPS, nil
-}
-
-func (r *Runner) printErrors() {
-	r.L.Infof("Uniq errors:")
-	for e, count := range r.uniqErrors {
-		r.L.Infof("error: %s, count: %d", e, count)
-	}
-}
-
-func (r *Runner) maxRPS() float64 {
-	r.metricsMu.Lock()
-	defer r.metricsMu.Unlock()
-	rates := make([]float64, 0)
-	for _, m := range r.tickMetrics {
-		rates = append(rates, m.Metrics.Rate)
-	}
-	return MaxRPS(rates)
 }
 
 // schedule creates schedule plan for a test
@@ -227,22 +224,24 @@ func (r *Runner) rampUp() {
 	}()
 }
 
-// isCompleteTick tick is complete when 95% of samples received
-func isCompleteTick(m *AsyncMetrics) bool {
+// isNewCompleteTick tick is complete when 95% of samples received, and it's not reported yet
+func isNewCompleteTick(m *TickMetrics) bool {
 	return float64(len(m.Samples)) >= float64(m.Samples[0].nextMsg.TargetRPS)*0.95 && !m.Reported
 }
 
 // collectResults collects attackers results and writes them to one of report options
+// report metrics when 95% of samples received
 func (r *Runner) collectResults() {
 	go func() {
 		for {
 			select {
 			case <-r.TimeoutCtx.Done():
 				r.printErrors()
+				r.metricsLogFile.Flush()
 				return
 			case res := <-r.results:
 				if _, ok := r.tickMetrics[res.nextMsg.Tick]; !ok {
-					r.tickMetrics[res.nextMsg.Tick] = &AsyncMetrics{
+					r.tickMetrics[res.nextMsg.Tick] = &TickMetrics{
 						false,
 						make([]AttackResult, 0),
 						NewMetrics(),
@@ -250,13 +249,13 @@ func (r *Runner) collectResults() {
 				}
 				currentTickMetrics := r.tickMetrics[res.nextMsg.Tick]
 				currentTickMetrics.Samples = append(currentTickMetrics.Samples, res)
-				if isCompleteTick(currentTickMetrics) {
-					currentTickMetrics.Reported = true
+				if isNewCompleteTick(currentTickMetrics) {
 					for _, s := range currentTickMetrics.Samples {
 						currentTickMetrics.Metrics.add(s)
 					}
 					currentTickMetrics.Metrics.update()
-					r.L.Infof("tick: %d, rate [%4f -> %v], perc: 50 [%v] 95 [%v], # requests [%d], %% success [%d]",
+					r.L.Infof("step: %d, tick: %d, rate [%4f -> %v], perc: 50 [%v] 95 [%v], # requests [%d], %% success [%d]",
+						res.nextMsg.Step,
 						res.nextMsg.Tick,
 						currentTickMetrics.Metrics.Rate,
 						res.nextMsg.TargetRPS,
@@ -265,8 +264,10 @@ func (r *Runner) collectResults() {
 						currentTickMetrics.Metrics.Requests,
 						currentTickMetrics.Metrics.successLogEntry(),
 					)
+					currentTickMetrics.Reported = true
 				}
 
+				errorForReport := "ok"
 				if res.doResult.Error != nil {
 					r.uniqErrors[res.doResult.Error.Error()] += 1
 					r.L.Debugf("attacker error: %s", res.doResult.Error)
@@ -274,9 +275,11 @@ func (r *Runner) collectResults() {
 						r.Failed = true
 						r.cancel()
 					}
+					errorForReport = res.doResult.Error.Error()
 				}
 				r.L.Debugf("received result: %v", res)
 				r.rawResultsLog = append(r.rawResultsLog, res)
+				r.writeCSVEntry(res, errorForReport)
 			}
 		}
 	}()
@@ -295,4 +298,39 @@ func (r *Runner) tick() {
 			}
 		}
 	}()
+}
+
+// printErrors print uniq errors
+func (r *Runner) printErrors() {
+	r.L.Infof("Uniq errors:")
+	for e, count := range r.uniqErrors {
+		r.L.Infof("error: %s, count: %d", e, count)
+	}
+}
+
+// maxRPS calculate max rps for test among ticks
+func (r *Runner) maxRPS() float64 {
+	r.metricsMu.Lock()
+	defer r.metricsMu.Unlock()
+	rates := make([]float64, 0)
+	for _, m := range r.tickMetrics {
+		rates = append(rates, m.Metrics.Rate)
+	}
+	return MaxRPS(rates)
+}
+
+// uniq metrics log filename
+func metricLogFilename(name string) string {
+	return fmt.Sprintf(MetricsLogFile, name, uuid.New().String(), time.Now().Format(time.RFC3339))
+}
+
+func (r *Runner) writeCSVEntry(res AttackResult, errorMsg string) {
+	_ = r.metricsLogFile.Write([]string{
+		res.doResult.RequestLabel,
+		strconv.Itoa(int(res.begin.UnixNano())),
+		strconv.Itoa(int(res.end.UnixNano())),
+		res.elapsed.String(),
+		string(res.doResult.StatusCode),
+		errorMsg,
+	})
 }
