@@ -28,6 +28,9 @@ func (r *Runner) handleShutdownSignal() {
 		case <-r.TimeoutCtx.Done():
 			return
 		case <-sigs:
+			if r.Cfg.ReportOptions.CSV {
+				r.flushLogs()
+			}
 			r.cancel()
 			r.L.Infof("exit signal received, exiting")
 			if r.Cfg.GoroutinesDump {

@@ -7,14 +7,26 @@
 
 package loaderbot
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type AttackResult struct {
-	// Step when request scheduled to execute
-	nextMsg    nextMsg
+	nextMsg    attackToken
 	begin, end time.Time
 	elapsed    time.Duration
 	doResult   DoResult
+}
+
+func (a AttackResult) String() string {
+	return fmt.Sprintf(
+		"begin: %s, end: %s, elapsed: %d, msg: %s",
+		a.begin.Format(time.RFC3339),
+		a.end.Format(time.RFC3339),
+		a.elapsed,
+		a.nextMsg,
+	)
 }
 
 // DoResult is the return value of a Do call on an Attack.

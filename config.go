@@ -52,7 +52,7 @@ type RunnerConfig struct {
 	TestTimeSec int
 	// WaitBeforeSec time to wait before start in case we didn't know start criteria
 	WaitBeforeSec int
-	// Dumptransport dump http requests to stdout
+	// Dumptransport dumps http requests to stdout
 	DumpTransport bool
 	// GoroutinesDump dumps goroutines stack for debug purposes
 	GoroutinesDump bool
@@ -62,6 +62,18 @@ type RunnerConfig struct {
 	LogLevel string
 	// LogEncoding json|console
 	LogEncoding string
+	// Reporting options, csv/png/stream
+	ReportOptions *ReportOptions
+}
+
+// ReportOptions reporting options
+type ReportOptions struct {
+	// CSV dumps requests/responses data
+	CSV bool
+	// PNG creates percentiles graph
+	PNG bool
+	// Stream streams raw and tick aggregated data back to client in cluster mode
+	Stream bool
 }
 
 func (c *RunnerConfig) Validate() {
@@ -79,6 +91,9 @@ func (c *RunnerConfig) DefaultCfgValues() {
 		// attacker will spawn goroutines for requests anyway, in this mode we are non-blocking
 		c.Attackers = 1
 	}
+	if c.StartRPS == 0 {
+		c.StartRPS = 10
+	}
 	// constant load
 	if c.StepRPS == 0 {
 		c.StepDurationSec = 10
@@ -88,6 +103,12 @@ func (c *RunnerConfig) DefaultCfgValues() {
 	}
 	if c.LogEncoding == "" {
 		c.LogEncoding = "console"
+	}
+	if c.ReportOptions == nil {
+		c.ReportOptions = &ReportOptions{
+			CSV: true,
+			PNG: true,
+		}
 	}
 }
 
@@ -101,9 +122,6 @@ func (c RunnerConfig) validate() (list []string) {
 	}
 	if c.AttackerTimeout <= 0 {
 		list = append(list, "please set attacker timeout > 0, seconds")
-	}
-	if c.StartRPS <= 0 {
-		list = append(list, "please set start rps > 0")
 	}
 	if c.StepDurationSec < 0 {
 		list = append(list, "please set step duration > 0, seconds")

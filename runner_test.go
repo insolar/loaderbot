@@ -23,6 +23,10 @@ func TestPrivateSystemRunnerSuccess(t *testing.T) {
 		StepDurationSec: 5,
 		StepRPS:         2,
 		TestTimeSec:     10,
+		ReportOptions: &ReportOptions{
+			CSV: false,
+			PNG: false,
+		},
 	}, &ControlAttackerMock{}, nil)
 	_, err := r.Run()
 	require.NoError(t, err)
@@ -38,6 +42,10 @@ func TestOpenWorldSystemRunnerSuccess(t *testing.T) {
 		StepDurationSec: 10,
 		StepRPS:         20,
 		TestTimeSec:     5,
+		ReportOptions: &ReportOptions{
+			CSV: false,
+			PNG: false,
+		},
 	}, &ControlAttackerMock{}, nil)
 	_, err := r.Run()
 	require.NoError(t, err)
@@ -52,6 +60,10 @@ func TestMultipleRunnersSuccess(t *testing.T) {
 		StepDurationSec: 5,
 		StepRPS:         2,
 		TestTimeSec:     1,
+		ReportOptions: &ReportOptions{
+			CSV: false,
+			PNG: false,
+		},
 	}
 	r := NewRunner(cfg, &ControlAttackerMock{}, nil)
 	_, err := r.Run()
@@ -78,6 +90,10 @@ func TestRunnerFailOnFirstError(t *testing.T) {
 		StepRPS:          2,
 		TestTimeSec:      5,
 		FailOnFirstError: true,
+		ReportOptions: &ReportOptions{
+			CSV: false,
+			PNG: false,
+		},
 	}, &ControlAttackerMock{}, nil)
 	serviceError := make(chan bool)
 	cfg := ControllableConfig{
@@ -102,6 +118,10 @@ func TestRunnerHangedRequestsAfterTimeoutNoError(t *testing.T) {
 		StepRPS:          2,
 		TestTimeSec:      2,
 		FailOnFirstError: true,
+		ReportOptions: &ReportOptions{
+			CSV: false,
+			PNG: false,
+		},
 	}, &ControlAttackerMock{}, nil)
 	// request still hangs when the test ends, but it's not an error because test has ended
 	r.controlled.Sleep = 5000
@@ -121,14 +141,14 @@ func TestPrivateSystemRunnerIsSync(t *testing.T) {
 		StepDurationSec: 5,
 		StepRPS:         1,
 		TestTimeSec:     5,
+		ReportOptions: &ReportOptions{
+			CSV: false,
+			PNG: false,
+		},
 	}, &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 30
-	_, _ = r.Run()
-	r.metricsMu.Lock()
-	defer r.metricsMu.Unlock()
-	for _, m := range r.tickMetrics {
-		require.Less(t, int(m.Metrics.Rate), rps)
-	}
+	maxRPS, _ := r.Run()
+	require.Less(t, int(maxRPS), rps)
 }
 
 func TestRunnerMaxRPSPrivateSystem(t *testing.T) {
@@ -142,12 +162,16 @@ func TestRunnerMaxRPSPrivateSystem(t *testing.T) {
 		StepDurationSec: 5,
 		StepRPS:         1,
 		TestTimeSec:     7,
+		ReportOptions: &ReportOptions{
+			CSV: false,
+			PNG: false,
+		},
 	}, &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 300
 	maxRPS, err := r.Run()
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, int(maxRPS), 69)
-	require.Less(t, int(maxRPS), 73)
+	require.GreaterOrEqual(t, int(maxRPS), 66)
+	require.Less(t, int(maxRPS), 70)
 }
 
 func TestRunnerMaxRPSOpenWorldSystem(t *testing.T) {
@@ -159,6 +183,10 @@ func TestRunnerMaxRPSOpenWorldSystem(t *testing.T) {
 		StepDurationSec: 5,
 		StepRPS:         100,
 		TestTimeSec:     17,
+		ReportOptions: &ReportOptions{
+			CSV: false,
+			PNG: false,
+		},
 	}, &ControlAttackerMock{}, nil)
 	maxRPS, err := r.Run()
 	require.NoError(t, err)
@@ -172,6 +200,10 @@ func TestRunnerConstantLoad(t *testing.T) {
 		AttackerTimeout: 1,
 		StartRPS:        30,
 		TestTimeSec:     15,
+		ReportOptions: &ReportOptions{
+			CSV: false,
+			PNG: false,
+		},
 	}, &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 300
 	maxRPS, err := r.Run()
@@ -186,6 +218,10 @@ func TestRunnerConstantLoad(t *testing.T) {
 		AttackerTimeout: 1,
 		StartRPS:        30,
 		TestTimeSec:     15,
+		ReportOptions: &ReportOptions{
+			CSV: false,
+			PNG: false,
+		},
 	}, &ControlAttackerMock{}, nil)
 	r2.controlled.Sleep = 300
 	maxRPS2, err2 := r2.Run()
@@ -204,7 +240,11 @@ func TestDynamicLatency(t *testing.T) {
 		StartRPS:        100,
 		StepDurationSec: 3,
 		StepRPS:         100,
-		TestTimeSec:     120,
+		TestTimeSec:     60,
+		ReportOptions: &ReportOptions{
+			CSV: false,
+			PNG: false,
+		},
 	}, &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 100
 	latCfg := ServiceLatencyChangeConfig{
@@ -226,10 +266,10 @@ func TestRunnerRealServiceAttack(t *testing.T) {
 		SystemMode:      OpenWorldSystem,
 		Attackers:       1,
 		AttackerTimeout: 1,
-		StartRPS:        10,
+		StartRPS:        100,
 		StepDurationSec: 5,
-		StepRPS:         50,
-		TestTimeSec:     20,
+		StepRPS:         200,
+		TestTimeSec:     30,
 	}, &HTTPAttackerExample{}, nil)
 	_, _ = r.Run()
 }
