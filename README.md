@@ -5,30 +5,38 @@ Minimalistic load tool
 
 Implement attacker
 ```go
-type HTTPAttackerExample struct {
-	*Runner
+package attackers
+
+import (
+	"context"
+	"net/http"
+
+	"github.com/insolar/loaderbot"
+)
+
+type AttackerExample struct {
+	*loaderbot.Runner
 	client *http.Client
 }
 
-func (a *HTTPAttackerExample) Clone(r *Runner) Attack {
-	return &HTTPAttackerExample{Runner: r}
+func (a *AttackerExample) Clone(r *loaderbot.Runner) loaderbot.Attack {
+	return &AttackerExample{Runner: r}
 }
 
-func (a *HTTPAttackerExample) Setup(c RunnerConfig) error {
-    // setup any client
+func (a *AttackerExample) Setup(c loaderbot.RunnerConfig) error {
 	a.client = loaderbot.NewLoggingHTTPClient(c.DumpTransport, 10)
 	return nil
 }
 
-func (a *HTTPAttackerExample) Do(_ context.Context) DoResult {
-	_, err := a.client.Get(a.cfg.TargetUrl)
-	return DoResult{
-		RequestLabel: a.name,
+func (a *AttackerExample) Do(_ context.Context) loaderbot.DoResult {
+	_, err := a.client.Get(a.Cfg.TargetUrl)
+	return loaderbot.DoResult{
+		RequestLabel: a.Name,
 		Error:        err,
 	}
 }
 
-func (a *HTTPAttackerExample) Teardown() error {
+func (a *AttackerExample) Teardown() error {
 	return nil
 }
 ```
@@ -50,7 +58,7 @@ lt := loaderbot.NewRunner(cfg, &loaderbot.HTTPAttackerExample{}, nil)
 maxRPS, _ := lt.Run()
 ```
 or with async attackers, when your system is "open" type, ex. search engine,
- when amount of attackers, and their identity is unknown, but you still have RPS requirements
+ when amount of attackers is unknown and you don't know will they block, but you still have RPS requirements
 ```go
 cfg := &loaderbot.RunnerConfig{
 		TargetUrl:       "https://clients5.google.com/pagead/drt/dn/",
@@ -101,7 +109,7 @@ type RunnerConfig struct {
 	TestTimeSec int
 	// WaitBeforeSec time to wait before start in case we didn't know start criteria
 	WaitBeforeSec int
-	// Dumptransport dump http requests to stdout
+	// Dumptransport dumps http requests to stdout
 	DumpTransport bool
 	// GoroutinesDump dumps goroutines stack for debug purposes
 	GoroutinesDump bool
@@ -111,6 +119,8 @@ type RunnerConfig struct {
 	LogLevel string
 	// LogEncoding json|console
 	LogEncoding string
+	// Reporting options, csv/png/stream
+	ReportOptions *ReportOptions
 }
 ```
 

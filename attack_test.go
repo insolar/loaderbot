@@ -23,6 +23,10 @@ func DefaultRunnerCfg() *RunnerConfig {
 		StepDurationSec: 5,
 		StepRPS:         5,
 		TestTimeSec:     60,
+		ReportOptions: &ReportOptions{
+			CSV: false,
+			PNG: false,
+		},
 	}
 }
 
@@ -39,7 +43,7 @@ func TestAttackSuccess(t *testing.T) {
 	go attack(r.attackers[0], r, wg)
 	wg.Wait()
 
-	r.next <- nextMsg{
+	r.next <- attackToken{
 		Step: 1,
 		Tick: 1,
 	}
@@ -56,7 +60,7 @@ func TestAttackSuccess(t *testing.T) {
 	go asyncAttack(r.attackers[0], r, wg2)
 	wg2.Wait()
 
-	r.next <- nextMsg{
+	r.next <- attackToken{
 		Step: 1,
 		Tick: 1,
 	}
@@ -82,7 +86,7 @@ func TestAttackTimeout(t *testing.T) {
 	go attack(r.attackers[0], r, wg)
 	wg.Wait()
 
-	r.next <- nextMsg{
+	r.next <- attackToken{
 		Step: 1,
 		Tick: 1,
 	}
@@ -97,7 +101,7 @@ func TestAttackTimeout(t *testing.T) {
 	go attack(r.attackers[0], r, wg2)
 	wg2.Wait()
 
-	r.next <- nextMsg{
+	r.next <- attackToken{
 		Step: 1,
 		Tick: 1,
 	}
