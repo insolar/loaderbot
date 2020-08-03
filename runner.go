@@ -87,7 +87,10 @@ type Runner struct {
 	// attackers cloned for a prototype
 	attackers []Attack
 
+	// inner results chan, when used in standalone mode
 	results chan AttackResult
+	// outer results chan, when called as a service, sends results in batches
+	OutResults chan []AttackResult
 	// raw results log
 	rawResultsLog      []AttackResult
 	metricsLogFilename string
@@ -120,6 +123,7 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		rl:                ratelimit.New(cfg.StartRPS),
 		attackers:         make([]Attack, 0),
 		results:           make(chan AttackResult, DefaultResultsQueueCapacity),
+		OutResults:        make(chan []AttackResult, DefaultResultsQueueCapacity),
 		rawResultsLog:     make([]AttackResult, 0),
 		tickMetrics:       make(map[int]*TickMetrics),
 		uniqErrors:        make(map[string]int),
@@ -247,6 +251,7 @@ func (r *Runner) collectResults() {
 				if r.Cfg.ReportOptions.CSV {
 					r.flushLogs()
 				}
+				close(r.OutResults)
 				return
 			case res := <-r.results:
 				r.L.Debugf("received result: %v", res)
@@ -254,14 +259,14 @@ func (r *Runner) collectResults() {
 				r.processTickMetrics(res)
 
 				errorForReport := "ok"
-				if res.doResult.Error != nil {
-					r.uniqErrors[res.doResult.Error.Error()] += 1
-					r.L.Debugf("attacker error: %s", res.doResult.Error)
+				if res.DoResult.Error != nil {
+					r.uniqErrors[res.DoResult.Error.Error()] += 1
+					r.L.Debugf("attacker error: %s", res.DoResult.Error)
 					if r.Cfg.FailOnFirstError {
 						r.Failed = true
 						r.cancel()
 					}
-					errorForReport = res.doResult.Error.Error()
+					errorForReport = res.DoResult.Error.Error()
 				}
 				if r.Cfg.ReportOptions.CSV {
 					r.writeResultEntry(res, errorForReport)
@@ -274,26 +279,29 @@ func (r *Runner) collectResults() {
 // processTickMetrics add attack result to tick metrics, if it's last result in tick then report
 func (r *Runner) processTickMetrics(res AttackResult) {
 	// if no such tick, create new TickMetrics
-	if _, ok := r.tickMetrics[res.nextMsg.Tick]; !ok {
-		r.tickMetrics[res.nextMsg.Tick] = &TickMetrics{
+	if _, ok := r.tickMetrics[res.AttackToken.Tick]; !ok {
+		r.tickMetrics[res.AttackToken.Tick] = &TickMetrics{
 			make([]AttackResult, 0),
 			NewMetrics(),
 		}
 	}
-	currentTickMetrics := r.tickMetrics[res.nextMsg.Tick]
+	currentTickMetrics := r.tickMetrics[res.AttackToken.Tick]
 	currentTickMetrics.Samples = append(currentTickMetrics.Samples, res)
 	// after all results for tick is received we await last token when tick is changed and reporting
-	if res.nextMsg.Finalized {
+	if res.AttackToken.Finalized {
+		if r.Cfg.ReportOptions.Stream {
+			r.OutResults <- currentTickMetrics.Samples
+		}
 		for _, s := range currentTickMetrics.Samples {
 			currentTickMetrics.Metrics.add(s)
 		}
 		currentTickMetrics.Metrics.update()
 		r.L.Infof(
 			"step: %d, tick: %d, rate [%4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
-			res.nextMsg.Step,
-			res.nextMsg.Tick,
+			res.AttackToken.Step,
+			res.AttackToken.Tick,
 			currentTickMetrics.Metrics.Rate,
-			res.nextMsg.TargetRPS,
+			res.AttackToken.TargetRPS,
 			currentTickMetrics.Metrics.Latencies.P50,
 			currentTickMetrics.Metrics.Latencies.P95,
 			currentTickMetrics.Metrics.Latencies.P99,
@@ -333,19 +341,19 @@ func uniqReportGraphFilename(name string) string {
 
 func (r *Runner) writeResultEntry(res AttackResult, errorMsg string) {
 	_ = r.metricsLogFile.Write([]string{
-		res.doResult.RequestLabel,
-		strconv.Itoa(int(res.begin.UnixNano())),
-		strconv.Itoa(int(res.end.UnixNano())),
-		res.elapsed.String(),
-		string(res.doResult.StatusCode),
+		res.DoResult.RequestLabel,
+		strconv.Itoa(int(res.Begin.UnixNano())),
+		strconv.Itoa(int(res.End.UnixNano())),
+		res.Elapsed.String(),
+		string(res.DoResult.StatusCode),
 		errorMsg,
 	})
 }
 
 func (r *Runner) writePercentilesEntry(res AttackResult, tickMetrics *Metrics) {
 	_ = r.percLogFile.Write([]string{
-		res.doResult.RequestLabel,
-		strconv.Itoa(res.nextMsg.Tick),
+		res.DoResult.RequestLabel,
+		strconv.Itoa(res.AttackToken.Tick),
 		strconv.Itoa(int(tickMetrics.Rate)),
 		strconv.Itoa(int(tickMetrics.Latencies.P50.Milliseconds())),
 		strconv.Itoa(int(tickMetrics.Latencies.P95.Milliseconds())),

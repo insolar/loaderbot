@@ -231,19 +231,19 @@ func TestRunnerConstantLoad(t *testing.T) {
 }
 
 func TestDynamicLatency(t *testing.T) {
-	t.Skip("only manual run")
+	//t.Skip("only manual run")
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
 		SystemMode:      OpenWorldSystem,
 		Attackers:       1000,
 		AttackerTimeout: 25,
 		StartRPS:        100,
-		StepDurationSec: 3,
+		StepDurationSec: 5,
 		StepRPS:         100,
 		TestTimeSec:     60,
 		ReportOptions: &ReportOptions{
-			CSV: false,
-			PNG: false,
+			CSV: true,
+			PNG: true,
 		},
 	}, &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 100
