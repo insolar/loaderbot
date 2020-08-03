@@ -231,7 +231,7 @@ func TestRunnerConstantLoad(t *testing.T) {
 }
 
 func TestDynamicLatency(t *testing.T) {
-	t.Skip("only manual run")
+	//t.Skip("only manual run")
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
 		SystemMode:      OpenWorldSystem,
