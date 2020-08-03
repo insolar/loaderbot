@@ -46,6 +46,11 @@ type TestData struct {
 	Data  interface{}
 }
 
+type ClusterTickMetrics struct {
+	Samples [][]AttackResult
+	Metrics *Metrics
+}
+
 type TickMetrics struct {
 	Samples []AttackResult
 	Metrics *Metrics
@@ -87,14 +92,14 @@ type Runner struct {
 	// attackers cloned for a prototype
 	attackers []Attack
 
-	// inner results chan, when used in standalone mode
+	// inner Results chan, when used in standalone mode
 	results chan AttackResult
-	// outer results chan, when called as a service, sends results in batches
+	// outer Results chan, when called as a service, sends Results in batches
 	OutResults chan []AttackResult
-	// raw results log
+	// raw Results log
 	rawResultsLog      []AttackResult
 	metricsLogFilename string
-	// raw attack results log file
+	// raw attack Results log file
 	metricsLogFile  *csv.Writer
 	percLogFilename string
 	// aggregated per second P50/95/99 percentiles of response time log
@@ -150,7 +155,7 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 }
 
 // Run runs the test
-func (r *Runner) Run() (float64, error) {
+func (r *Runner) Run() (context.CancelFunc, float64, error) {
 	if r.Cfg.WaitBeforeSec > 0 {
 		r.L.Infof("waiting for %d seconds before start", r.Cfg.WaitBeforeSec)
 		time.Sleep(time.Duration(r.Cfg.WaitBeforeSec) * time.Second)
@@ -180,7 +185,7 @@ func (r *Runner) Run() (float64, error) {
 	maxRPS := r.maxRPS()
 	r.L.Infof("max rps: %.2f", maxRPS)
 	r.report()
-	return maxRPS, nil
+	return cancel, maxRPS, nil
 }
 
 func (r *Runner) report() {
@@ -241,7 +246,7 @@ func (r *Runner) schedule() {
 	}()
 }
 
-// collectResults collects attackers results and writes them to one of report options
+// collectResults collects attackers Results and writes them to one of report options
 func (r *Runner) collectResults() {
 	go func() {
 		for {
@@ -287,7 +292,7 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 	}
 	currentTickMetrics := r.tickMetrics[res.AttackToken.Tick]
 	currentTickMetrics.Samples = append(currentTickMetrics.Samples, res)
-	// after all results for tick is received we await last token when tick is changed and reporting
+	// after all Results for tick is received we await last token when tick is changed and reporting
 	if res.AttackToken.Finalized {
 		if r.Cfg.ReportOptions.Stream {
 			r.OutResults <- currentTickMetrics.Samples

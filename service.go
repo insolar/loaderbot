@@ -2,14 +2,17 @@ package loaderbot
 
 import (
 	"bytes"
+	"context"
 	"encoding/gob"
 	"encoding/json"
-	"google.golang.org/grpc"
 	"log"
 	"net"
+
+	"google.golang.org/grpc"
 )
 
 type server struct {
+	runnerCancelFunc context.CancelFunc
 	UnimplementedLoaderServer
 }
 
@@ -47,16 +50,23 @@ func streamResults(r *Runner, srv Loader_RunServer) {
 	}
 }
 
-// Run starts Runner and stream results back to cluster client
+// Run starts Runner and stream Results back to cluster client
 func (s *server) Run(req *RunConfigRequest, srv Loader_RunServer) error {
 	cfg := UnmarshalConfigGob(req.Config)
 
 	r := NewRunner(&cfg, &HTTPAttackerExample{}, nil)
 	cfgJson, _ := json.Marshal(cfg)
 	r.L.Infof("running task: %s", cfgJson)
-	go r.Run()
+	go func() {
+		s.runnerCancelFunc, _, _ = r.Run()
+	}()
 	streamResults(r, srv)
 	return nil
+}
+
+func (s *server) ShutdownNode(_ context.Context, _ *ShutdownNodeRequest) (*ShutdownNodeResponse, error) {
+	s.runnerCancelFunc()
+	return &ShutdownNodeResponse{}, nil
 }
 
 func RunService(addr string) *grpc.Server {

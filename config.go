@@ -32,7 +32,7 @@ type RunnerConfig struct {
 	// in case your system is private and you know how many sync clients can act
 	// OpenWorldSystem:
 	// if application under test is an open world system async runner attackers will fire requests without waiting
-	// it creates some inaccuracy in results, so you can check latencies using service metrics to be precise,
+	// it creates some inaccuracy in Results, so you can check latencies using service metrics to be precise,
 	// but the test will be more realistic from clients point of view
 	SystemMode SystemMode
 	// Attackers constant amount of attackers,

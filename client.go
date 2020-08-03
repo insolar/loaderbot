@@ -5,10 +5,12 @@ import (
 	"context"
 	"encoding/gob"
 	"fmt"
-	"google.golang.org/grpc"
 	"io"
 	"log"
+	"sync/atomic"
 	"time"
+
+	"google.golang.org/grpc"
 )
 
 type NodeClient struct {
@@ -29,7 +31,7 @@ func NewNodeClient(addr string) *NodeClient {
 	}
 }
 
-func (m *NodeClient) StartRunner(cfg RunnerConfig, aggregateResults chan []AttackResult) {
+func (m *NodeClient) StartRunner(cfg RunnerConfig, cluster *ClusterClient) {
 	var err error
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -40,20 +42,28 @@ func (m *NodeClient) StartRunner(cfg RunnerConfig, aggregateResults chan []Attac
 	if err != nil {
 		log.Fatal(err)
 	}
-	m.receive(aggregateResults)
+	m.receive(cluster)
+}
+
+func (m *NodeClient) Shutdown() {
+	if _, err := m.LoaderClient.ShutdownNode(context.Background(), &ShutdownNodeRequest{}); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (m *NodeClient) Close() {
 	m.conn.Close()
 }
 
-func (m *NodeClient) receive(aggregateResults chan []AttackResult) {
+func (m *NodeClient) receive(cluster *ClusterClient) {
 	for {
 		res, err := m.stream.Recv()
 		if res == nil {
+			atomic.AddInt32(&cluster.activeClients, -1)
 			return
 		}
 		if err == io.EOF {
+			atomic.AddInt32(&cluster.activeClients, -1)
 			return
 		}
 		b := bytes.NewBuffer(res.ResultsChunk)
@@ -65,45 +75,92 @@ func (m *NodeClient) receive(aggregateResults chan []AttackResult) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		//log.Printf("Data: %s", results)
-		aggregateResults <- results
+		cluster.Results <- results
 	}
 }
 
 type ClusterClient struct {
+	totalClients       int
+	activeClients      int32
 	clients            []*NodeClient
-	results            chan []AttackResult
-	clusterTickMetrics map[int]*TickMetrics
+	Results            chan []AttackResult
+	clusterTickMetrics map[int]*ClusterTickMetrics
 }
 
-func NewClusterClient() *ClusterClient {
+func NewClusterClient(totalClients int) *ClusterClient {
 	clients := make([]*NodeClient, 0)
 	port := 50051
-	for i := 0; i < 2; i++ {
+	for i := 0; i < totalClients; i++ {
 		clients = append(clients, NewNodeClient(fmt.Sprintf("localhost:%d", port+1)))
 	}
 	return &ClusterClient{
+		totalClients:       totalClients,
 		clients:            clients,
-		results:            make(chan []AttackResult),
-		clusterTickMetrics: make(map[int]*TickMetrics),
+		Results:            make(chan []AttackResult),
+		clusterTickMetrics: make(map[int]*ClusterTickMetrics),
 	}
 }
 
 func (m *ClusterClient) RunClusterTestFromConfig(cfg RunnerConfig) {
 	for _, c := range m.clients {
-		go c.StartRunner(cfg, m.results)
+		atomic.AddInt32(&m.activeClients, 1)
+		go c.StartRunner(cfg, m)
 	}
-	m.collectResults()
+	m.collectResults(cfg)
 	for _, c := range m.clients {
 		c.Close()
 	}
 }
 
-func (m *ClusterClient) collectResults() {
+func (m *ClusterClient) collectResults(cfg RunnerConfig) {
 	for {
 		select {
-		case res := <-m.results:
-			log.Printf("res: %s", res)
+		case res := <-m.Results:
+			token := res[0].AttackToken
+			tick := res[0].AttackToken.Tick
+			if _, ok := m.clusterTickMetrics[tick]; !ok {
+				m.clusterTickMetrics[tick] = &ClusterTickMetrics{
+					Samples: make([][]AttackResult, 0),
+					Metrics: NewMetrics(),
+				}
+			}
+			currentTickMetrics := m.clusterTickMetrics[tick]
+			currentTickMetrics.Samples = append(currentTickMetrics.Samples, res)
+			if len(currentTickMetrics.Samples) == m.totalClients {
+				for _, sampleBatch := range currentTickMetrics.Samples {
+					for _, s := range sampleBatch {
+						currentTickMetrics.Metrics.add(s)
+					}
+				}
+				currentTickMetrics.Metrics.update()
+				log.Printf(
+					"CLUSTER step: %d, tick: %d, rate [%4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
+					token.Step,
+					tick,
+					currentTickMetrics.Metrics.Rate,
+					token.TargetRPS*m.totalClients,
+					currentTickMetrics.Metrics.Latencies.P50,
+					currentTickMetrics.Metrics.Latencies.P95,
+					currentTickMetrics.Metrics.Latencies.P99,
+					currentTickMetrics.Metrics.Requests,
+					currentTickMetrics.Metrics.successLogEntry(),
+				)
+			}
+			// shutdown other clients if error
+			for _, sampleBatch := range currentTickMetrics.Samples {
+				for _, s := range sampleBatch {
+					if s.DoResult.Error != nil && cfg.FailOnFirstError {
+						for _, c := range m.clients {
+							c.Shutdown()
+						}
+					}
+				}
+			}
+		default:
+			if atomic.LoadInt32(&m.activeClients) == 0 {
+				log.Printf("all clients exited, test ended")
+				return
+			}
 		}
 	}
 }

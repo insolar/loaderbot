@@ -5,15 +5,22 @@ option go_package = ".;loaderbot";
 package loaderbot;
 
 service Loader {
-    rpc Run (RunConfigRequest) returns (stream ResultsResponse) {
-    }
+  rpc ShutdownNode (ShutdownNodeRequest) returns (ShutdownNodeResponse) {
+
+  }
+  rpc Run (RunConfigRequest) returns (stream ResultsResponse) {
+
+  }
 }
 
 message RunConfigRequest {
-    bytes config = 1;
-    string attackerName = 2;
+  bytes config = 1;
+  string attackerName = 2;
 }
 
 message ResultsResponse {
-    bytes resultsChunk = 1;
+  bytes resultsChunk = 1;
 }
+
+message ShutdownNodeRequest {}
+message ShutdownNodeResponse {}
