@@ -238,12 +238,12 @@ func TestDynamicLatency(t *testing.T) {
 		Attackers:       1000,
 		AttackerTimeout: 25,
 		StartRPS:        100,
-		StepDurationSec: 3,
+		StepDurationSec: 5,
 		StepRPS:         100,
 		TestTimeSec:     60,
 		ReportOptions: &ReportOptions{
-			CSV: false,
-			PNG: false,
+			CSV: true,
+			PNG: true,
 		},
 	}, &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 100

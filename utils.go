@@ -36,7 +36,7 @@ func (r *Runner) handleShutdownSignal() {
 			if r.Cfg.GoroutinesDump {
 				buf := make([]byte, 1<<20)
 				stacklen := runtime.Stack(buf, true)
-				r.L.Infof("=== received SIGTERM ===\n*** goroutine dump...\n%s\n*** end\n", buf[:stacklen])
+				r.L.Infof("=== received SIGTERM ===\n*** goroutine dump...\n%s\n*** End\n", buf[:stacklen])
 			}
 			os.Exit(1)
 		}

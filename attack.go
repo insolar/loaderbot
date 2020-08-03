@@ -63,11 +63,11 @@ func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
 			tEnd := time.Now()
 
 			atkResult := AttackResult{
-				nextMsg:  nextMsg,
-				begin:    tStart,
-				end:      tEnd,
-				elapsed:  tEnd.Sub(tStart),
-				doResult: doResult,
+				AttackToken: nextMsg,
+				Begin:       tStart,
+				End:         tEnd,
+				Elapsed:     tEnd.Sub(tStart),
+				DoResult:    doResult,
 			}
 			requestCtxCancel()
 			r.results <- atkResult
@@ -112,11 +112,11 @@ func asyncAttack(a Attack, r *Runner, wg *sync.WaitGroup) {
 				tEnd := time.Now()
 
 				atkResult := AttackResult{
-					nextMsg:  nextMsg,
-					begin:    tStart,
-					end:      tEnd,
-					elapsed:  tEnd.Sub(tStart),
-					doResult: doResult,
+					AttackToken: nextMsg,
+					Begin:       tStart,
+					End:         tEnd,
+					Elapsed:     tEnd.Sub(tStart),
+					DoResult:    doResult,
 				}
 				requestCtxCancel()
 				r.results <- atkResult

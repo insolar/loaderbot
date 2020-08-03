@@ -48,10 +48,10 @@ func TestAttackSuccess(t *testing.T) {
 		Tick: 1,
 	}
 	res := <-r.results
-	if got, want := res.doResult.Error, error(nil); got != want {
+	if got, want := res.DoResult.Error, error(nil); got != want {
 		t.Fatalf("got %v want %v", got, want)
 	}
-	if got, want := int(res.elapsed), int(r.controlled.Sleep); got < want {
+	if got, want := int(res.Elapsed), int(r.controlled.Sleep); got < want {
 		t.Fatalf("got %v want >= %v", got, want)
 	}
 	// async
@@ -65,10 +65,10 @@ func TestAttackSuccess(t *testing.T) {
 		Tick: 1,
 	}
 	res2 := <-r.results
-	if got, want := res2.doResult.Error, error(nil); got != want {
+	if got, want := res2.DoResult.Error, error(nil); got != want {
 		t.Fatalf("got %v want %v", got, want)
 	}
-	if got, want := int(res.elapsed), int(r.controlled.Sleep); got < want {
+	if got, want := int(res.Elapsed), int(r.controlled.Sleep); got < want {
 		t.Fatalf("got %v want >= %v", got, want)
 	}
 }
@@ -91,7 +91,7 @@ func TestAttackTimeout(t *testing.T) {
 		Tick: 1,
 	}
 	res := <-r.results
-	if got, want := res.doResult.Error, errAttackDoTimedOut; got != want {
+	if got, want := res.DoResult.Error, errAttackDoTimedOut; got != want {
 		t.Fatalf("got %v want %v", got, want)
 	}
 
@@ -106,7 +106,7 @@ func TestAttackTimeout(t *testing.T) {
 		Tick: 1,
 	}
 	res2 := <-r.results
-	if got, want := res2.doResult.Error, errAttackDoTimedOut; got != want {
+	if got, want := res2.DoResult.Error, errAttackDoTimedOut; got != want {
 		t.Fatalf("got %v want %v", got, want)
 	}
 }

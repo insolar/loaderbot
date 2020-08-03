@@ -13,19 +13,19 @@ import (
 )
 
 type AttackResult struct {
-	nextMsg    attackToken
-	begin, end time.Time
-	elapsed    time.Duration
-	doResult   DoResult
+	AttackToken attackToken
+	Begin, End  time.Time
+	Elapsed     time.Duration
+	DoResult    DoResult
 }
 
 func (a AttackResult) String() string {
 	return fmt.Sprintf(
-		"begin: %s, end: %s, elapsed: %d, msg: %s",
-		a.begin.Format(time.RFC3339),
-		a.end.Format(time.RFC3339),
-		a.elapsed,
-		a.nextMsg,
+		"Begin: %s, End: %s, Elapsed: %d, msg: %s",
+		a.Begin.Format(time.RFC3339),
+		a.End.Format(time.RFC3339),
+		a.Elapsed,
+		a.AttackToken,
 	)
 }
 
