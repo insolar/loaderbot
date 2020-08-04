@@ -16,36 +16,20 @@ type server struct {
 	UnimplementedLoaderServer
 }
 
-// for ease of use cfg now is just bytes, create pb types later
-func MarshalConfigGob(cfg interface{}) []byte {
-	var b bytes.Buffer
-	enc := gob.NewEncoder(&b)
-	if err := enc.Encode(cfg); err != nil {
-		log.Fatal(err)
-	}
-	return b.Bytes()
-}
-
-func UnmarshalConfigGob(d []byte) RunnerConfig {
-	b := bytes.NewBuffer(d)
-	dec := gob.NewDecoder(b)
-	var cfg RunnerConfig
-	if err := dec.Decode(&cfg); err != nil {
-		log.Fatal(err)
-	}
-	return cfg
-}
-
-func streamResults(r *Runner, srv Loader_RunServer) {
+func (r *Runner) streamResults(srv Loader_RunServer) {
 	for chunk := range r.OutResults {
 		var b bytes.Buffer
 		enc := gob.NewEncoder(&b)
 		err := enc.Encode(chunk)
 		if err != nil {
-			log.Fatal(err)
+			r.L.Error(err)
 		}
 		if err := srv.Send(&ResultsResponse{ResultsChunk: b.Bytes()}); err != nil {
-			log.Fatal(err)
+			r.L.Error(err)
+		}
+		// send last tick batch and shutdown, other nodes will be cancelled by client
+		if r.Cfg.FailOnFirstError && r.Failed {
+			r.CancelFunc()
 		}
 	}
 }
@@ -55,17 +39,21 @@ func (s *server) Run(req *RunConfigRequest, srv Loader_RunServer) error {
 	cfg := UnmarshalConfigGob(req.Config)
 
 	r := NewRunner(&cfg, &HTTPAttackerExample{}, nil)
-	cfgJson, _ := json.Marshal(cfg)
+	cfgJson, _ := json.MarshalIndent(cfg, "", "    ")
 	r.L.Infof("running task: %s", cfgJson)
+	var ctx context.Context
+	ctx, s.runnerCancelFunc = context.WithCancel(context.Background())
 	go func() {
-		s.runnerCancelFunc, _, _ = r.Run()
+		_, _ = r.Run(ctx)
 	}()
-	streamResults(r, srv)
+	r.streamResults(srv)
 	return nil
 }
 
 func (s *server) ShutdownNode(_ context.Context, _ *ShutdownNodeRequest) (*ShutdownNodeResponse, error) {
-	s.runnerCancelFunc()
+	if s.runnerCancelFunc != nil {
+		s.runnerCancelFunc()
+	}
 	return &ShutdownNodeResponse{}, nil
 }
 

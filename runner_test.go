@@ -8,6 +8,7 @@
 package loaderbot
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -28,7 +29,7 @@ func TestPrivateSystemRunnerSuccess(t *testing.T) {
 			PNG: false,
 		},
 	}, &ControlAttackerMock{}, nil)
-	_, _, err := r.Run()
+	_, err := r.Run(context.TODO())
 	require.NoError(t, err)
 }
 
@@ -47,7 +48,7 @@ func TestOpenWorldSystemRunnerSuccess(t *testing.T) {
 			PNG: false,
 		},
 	}, &ControlAttackerMock{}, nil)
-	_, _, err := r.Run()
+	_, err := r.Run(context.TODO())
 	require.NoError(t, err)
 }
 
@@ -66,17 +67,17 @@ func TestMultipleRunnersSuccess(t *testing.T) {
 		},
 	}
 	r := NewRunner(cfg, &ControlAttackerMock{}, nil)
-	_, _, err := r.Run()
+	_, err := r.Run(context.TODO())
 	require.NoError(t, err)
 	r2 := NewRunner(cfg, &ControlAttackerMock{}, nil)
-	_, _, err2 := r2.Run()
+	_, err2 := r2.Run(context.TODO())
 	require.NoError(t, err2)
 	cfg.SystemMode = OpenWorldSystem
 	r3 := NewRunner(cfg, &ControlAttackerMock{}, nil)
-	_, _, err3 := r3.Run()
+	_, err3 := r3.Run(context.TODO())
 	require.NoError(t, err3)
 	r4 := NewRunner(cfg, &ControlAttackerMock{}, nil)
-	_, _, err4 := r4.Run()
+	_, err4 := r4.Run(context.TODO())
 	require.NoError(t, err4)
 }
 
@@ -103,7 +104,7 @@ func TestRunnerFailOnFirstError(t *testing.T) {
 	}
 	withControllableAttackers(cfg)
 	serviceErrorAfter(serviceError, 1*time.Nanosecond)
-	_, _, _ = r.Run()
+	_, _ = r.Run(context.TODO())
 	require.Equal(t, true, r.Failed)
 }
 
@@ -125,7 +126,7 @@ func TestRunnerHangedRequestsAfterTimeoutNoError(t *testing.T) {
 	}, &ControlAttackerMock{}, nil)
 	// request still hangs when the test ends, but it's not an error because test has ended
 	r.controlled.Sleep = 5000
-	_, _, err := r.Run()
+	_, err := r.Run(context.TODO())
 	require.NoError(t, err)
 	require.Empty(t, r.uniqErrors)
 }
@@ -147,7 +148,7 @@ func TestPrivateSystemRunnerIsSync(t *testing.T) {
 		},
 	}, &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 30
-	_, maxRPS, _ := r.Run()
+	maxRPS, _ := r.Run(context.TODO())
 	require.Less(t, int(maxRPS), rps)
 }
 
@@ -168,7 +169,7 @@ func TestRunnerMaxRPSPrivateSystem(t *testing.T) {
 		},
 	}, &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 300
-	_, maxRPS, err := r.Run()
+	maxRPS, err := r.Run(context.TODO())
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, int(maxRPS), 66)
 	require.Less(t, int(maxRPS), 70)
@@ -188,7 +189,7 @@ func TestRunnerMaxRPSOpenWorldSystem(t *testing.T) {
 			PNG: false,
 		},
 	}, &ControlAttackerMock{}, nil)
-	_, maxRPS, err := r.Run()
+	maxRPS, err := r.Run(context.TODO())
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, int(maxRPS), 400)
 }
@@ -199,14 +200,14 @@ func TestRunnerConstantLoad(t *testing.T) {
 		SystemMode:      OpenWorldSystem,
 		AttackerTimeout: 1,
 		StartRPS:        30,
-		TestTimeSec:     15,
+		TestTimeSec:     5,
 		ReportOptions: &ReportOptions{
 			CSV: false,
 			PNG: false,
 		},
 	}, &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 300
-	_, maxRPS, err := r.Run()
+	maxRPS, err := r.Run(context.TODO())
 	require.NoError(t, err)
 	require.Greater(t, int(maxRPS), 30)
 	require.Less(t, int(maxRPS), 33)
@@ -217,14 +218,14 @@ func TestRunnerConstantLoad(t *testing.T) {
 		Attackers:       300,
 		AttackerTimeout: 1,
 		StartRPS:        30,
-		TestTimeSec:     15,
+		TestTimeSec:     5,
 		ReportOptions: &ReportOptions{
 			CSV: false,
 			PNG: false,
 		},
 	}, &ControlAttackerMock{}, nil)
 	r2.controlled.Sleep = 300
-	_, maxRPS2, err2 := r2.Run()
+	maxRPS2, err2 := r2.Run(context.TODO())
 	require.NoError(t, err2)
 	require.Greater(t, int(maxRPS2), 30)
 	require.Less(t, int(maxRPS2), 33)
@@ -255,7 +256,7 @@ func TestDynamicLatency(t *testing.T) {
 		LatencyFlag:   increaseLatency,
 	}
 	changeAttackersLatency(latCfg)
-	_, _, _ = r.Run()
+	_, _ = r.Run(context.TODO())
 }
 
 func TestRunnerRealServiceAttack(t *testing.T) {
@@ -271,5 +272,5 @@ func TestRunnerRealServiceAttack(t *testing.T) {
 		StepRPS:         200,
 		TestTimeSec:     30,
 	}, &HTTPAttackerExample{}, nil)
-	_, _, _ = r.Run()
+	_, _ = r.Run(context.TODO())
 }

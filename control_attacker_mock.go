@@ -9,7 +9,6 @@ package loaderbot
 
 import (
 	"context"
-	"errors"
 	"log"
 	"sync/atomic"
 	"time"
@@ -37,7 +36,7 @@ func (a *ControlAttackerMock) Do(_ context.Context) DoResult {
 	select {
 	case <-a.serviceError:
 		log.Printf("service error happens")
-		return DoResult{RequestLabel: a.r.Name, Error: errors.New("service error")}
+		return DoResult{RequestLabel: a.r.Name, Error: "service error"}
 	default:
 	}
 	sleepTime := atomic.LoadUint64(&a.r.controlled.Sleep)

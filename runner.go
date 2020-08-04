@@ -86,7 +86,7 @@ type Runner struct {
 	// TimeoutCtx test timeout ctx
 	TimeoutCtx context.Context
 	// test cancel func
-	cancel context.CancelFunc
+	CancelFunc context.CancelFunc
 	// next schedule chan to signal to attack
 	next chan attackToken
 	// attackers cloned for a prototype
@@ -155,15 +155,16 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 }
 
 // Run runs the test
-func (r *Runner) Run() (context.CancelFunc, float64, error) {
+func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 	if r.Cfg.WaitBeforeSec > 0 {
 		r.L.Infof("waiting for %d seconds before start", r.Cfg.WaitBeforeSec)
 		time.Sleep(time.Duration(r.Cfg.WaitBeforeSec) * time.Second)
 	}
 	r.L.Infof("runner started, mode: %s", r.Cfg.SystemMode.String())
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.TestTimeSec)*time.Second)
-	r.TimeoutCtx = ctx
-	r.cancel = cancel
+	if serverCtx == nil {
+		serverCtx = context.Background()
+	}
+	r.TimeoutCtx, r.CancelFunc = context.WithTimeout(serverCtx, time.Duration(r.Cfg.TestTimeSec)*time.Second)
 	wg := &sync.WaitGroup{}
 	wg.Add(len(r.attackers))
 	for atkIdx, attacker := range r.attackers {
@@ -180,12 +181,12 @@ func (r *Runner) Run() (context.CancelFunc, float64, error) {
 	r.schedule()
 	r.collectResults()
 	<-r.TimeoutCtx.Done()
-	r.cancel()
+	r.CancelFunc()
 	r.L.Infof("runner exited")
 	maxRPS := r.maxRPS()
 	r.L.Infof("max rps: %.2f", maxRPS)
 	r.report()
-	return cancel, maxRPS, nil
+	return maxRPS, nil
 }
 
 func (r *Runner) report() {
@@ -260,22 +261,23 @@ func (r *Runner) collectResults() {
 				return
 			case res := <-r.results:
 				r.L.Debugf("received result: %v", res)
-				r.rawResultsLog = append(r.rawResultsLog, res)
-				r.processTickMetrics(res)
 
 				errorForReport := "ok"
-				if res.DoResult.Error != nil {
-					r.uniqErrors[res.DoResult.Error.Error()] += 1
+				if res.DoResult.Error != "" {
+					r.uniqErrors[res.DoResult.Error] += 1
 					r.L.Debugf("attacker error: %s", res.DoResult.Error)
 					if r.Cfg.FailOnFirstError {
 						r.Failed = true
-						r.cancel()
 					}
-					errorForReport = res.DoResult.Error.Error()
+					errorForReport = res.DoResult.Error
 				}
+
 				if r.Cfg.ReportOptions.CSV {
 					r.writeResultEntry(res, errorForReport)
 				}
+
+				r.rawResultsLog = append(r.rawResultsLog, res)
+				r.processTickMetrics(res)
 			}
 		}
 	}()

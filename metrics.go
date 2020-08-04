@@ -112,10 +112,10 @@ func (m *Metrics) add(r AttackResult) {
 		m.Latencies.Max = r.Elapsed
 	}
 
-	if r.DoResult.Error != nil {
-		if _, ok := m.errors[r.DoResult.Error.Error()]; !ok {
-			m.errors[r.DoResult.Error.Error()] = struct{}{}
-			m.Errors = append(m.Errors, r.DoResult.Error.Error())
+	if r.DoResult.Error != "" {
+		if _, ok := m.errors[r.DoResult.Error]; !ok {
+			m.errors[r.DoResult.Error] = struct{}{}
+			m.Errors = append(m.Errors, r.DoResult.Error)
 		}
 		m.errorsCount++
 	} else {

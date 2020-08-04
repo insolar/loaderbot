@@ -19,7 +19,7 @@ type Attack interface {
 	// It may want to access the Config of the Runner.
 	Setup(c RunnerConfig) error
 	// Do performs one request and is executed in a separate goroutine.
-	// The context is used to cancel the request on timeout.
+	// The context is used to CancelFunc the request on timeout.
 	Do(ctx context.Context) DoResult
 	// Teardown can be used to close the connection to the service
 	Teardown() error

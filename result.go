@@ -34,7 +34,7 @@ type DoResult struct {
 	// Label identifying the request that was send which is only used for reporting the Metrics.
 	RequestLabel string
 	// The error that happened when sending the request or receiving the response.
-	Error error
+	Error string
 	// The HTTP status code.
 	StatusCode int
 	// Number of bytes transferred when sending the request.

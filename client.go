@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
-	"fmt"
 	"io"
 	"log"
 	"sync/atomic"
@@ -31,16 +30,16 @@ func NewNodeClient(addr string) *NodeClient {
 	}
 }
 
-func (m *NodeClient) StartRunner(cfg RunnerConfig, cluster *ClusterClient) {
+func (m *NodeClient) StartRunner(cluster *ClusterClient) {
 	var err error
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	m.stream, err = m.Run(ctx, &RunConfigRequest{
-		Config:       MarshalConfigGob(cfg),
+		Config:       MarshalConfigGob(cluster.testCfg),
 		AttackerName: "http",
 	})
 	if err != nil {
-		log.Fatal(err)
+		cluster.L.Fatal(err)
 	}
 	m.receive(cluster)
 }
@@ -70,49 +69,54 @@ func (m *NodeClient) receive(cluster *ClusterClient) {
 		dec := gob.NewDecoder(b)
 		var results []AttackResult
 		if err := dec.Decode(&results); err != nil {
-			log.Fatal(err)
+			cluster.L.Fatal(err)
 		}
 		if err != nil {
-			log.Fatal(err)
+			cluster.L.Error(err)
 		}
 		cluster.Results <- results
 	}
 }
 
 type ClusterClient struct {
-	totalClients       int
+	TimeoutCtx context.Context
+	CancelFunc context.CancelFunc
+
+	failed             bool
+	testCfg            *RunnerConfig
 	activeClients      int32
 	clients            []*NodeClient
 	Results            chan []AttackResult
 	clusterTickMetrics map[int]*ClusterTickMetrics
+	L                  *Logger
 }
 
-func NewClusterClient(totalClients int) *ClusterClient {
+func NewClusterClient(cfg *RunnerConfig) *ClusterClient {
 	clients := make([]*NodeClient, 0)
-	port := 50051
-	for i := 0; i < totalClients; i++ {
-		clients = append(clients, NewNodeClient(fmt.Sprintf("localhost:%d", port+1)))
+	for _, addr := range cfg.ClusterOptions.Nodes {
+		clients = append(clients, NewNodeClient(addr))
 	}
 	return &ClusterClient{
-		totalClients:       totalClients,
+		testCfg:            cfg,
 		clients:            clients,
 		Results:            make(chan []AttackResult),
 		clusterTickMetrics: make(map[int]*ClusterTickMetrics),
+		L:                  NewLogger(cfg).With("cluster", cfg.Name),
 	}
 }
 
-func (m *ClusterClient) RunClusterTestFromConfig(cfg RunnerConfig) {
+func (m *ClusterClient) Run() {
 	for _, c := range m.clients {
 		atomic.AddInt32(&m.activeClients, 1)
-		go c.StartRunner(cfg, m)
+		go c.StartRunner(m)
 	}
-	m.collectResults(cfg)
+	m.collectResults()
 	for _, c := range m.clients {
 		c.Close()
 	}
 }
 
-func (m *ClusterClient) collectResults(cfg RunnerConfig) {
+func (m *ClusterClient) collectResults() {
 	for {
 		select {
 		case res := <-m.Results:
@@ -126,19 +130,19 @@ func (m *ClusterClient) collectResults(cfg RunnerConfig) {
 			}
 			currentTickMetrics := m.clusterTickMetrics[tick]
 			currentTickMetrics.Samples = append(currentTickMetrics.Samples, res)
-			if len(currentTickMetrics.Samples) == m.totalClients {
+			if len(currentTickMetrics.Samples) == len(m.testCfg.ClusterOptions.Nodes) {
 				for _, sampleBatch := range currentTickMetrics.Samples {
 					for _, s := range sampleBatch {
 						currentTickMetrics.Metrics.add(s)
 					}
 				}
 				currentTickMetrics.Metrics.update()
-				log.Printf(
-					"CLUSTER step: %d, tick: %d, rate [%4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
+				m.L.Infof(
+					"step: %d, tick: %d, rate [%4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
 					token.Step,
 					tick,
 					currentTickMetrics.Metrics.Rate,
-					token.TargetRPS*m.totalClients,
+					token.TargetRPS*len(m.testCfg.ClusterOptions.Nodes),
 					currentTickMetrics.Metrics.Latencies.P50,
 					currentTickMetrics.Metrics.Latencies.P95,
 					currentTickMetrics.Metrics.Latencies.P99,
@@ -146,21 +150,31 @@ func (m *ClusterClient) collectResults(cfg RunnerConfig) {
 					currentTickMetrics.Metrics.successLogEntry(),
 				)
 			}
-			// shutdown other clients if error
-			for _, sampleBatch := range currentTickMetrics.Samples {
-				for _, s := range sampleBatch {
-					if s.DoResult.Error != nil && cfg.FailOnFirstError {
-						for _, c := range m.clients {
-							c.Shutdown()
-						}
-					}
-				}
+			// shutdown other Nodes if error
+			if m.shutdownOnNodeSampleError(currentTickMetrics) {
+				return
 			}
 		default:
 			if atomic.LoadInt32(&m.activeClients) == 0 {
-				log.Printf("all clients exited, test ended")
+				m.L.Infof("all nodes exited, test ended")
 				return
 			}
 		}
 	}
+}
+
+func (m *ClusterClient) shutdownOnNodeSampleError(clusterTick *ClusterTickMetrics) bool {
+	for _, sampleBatch := range clusterTick.Samples {
+		for _, s := range sampleBatch {
+			if s.DoResult.Error != "" && m.testCfg.FailOnFirstError {
+				for idx, c := range m.clients {
+					m.L.Infof("shutting down runner: %d", idx)
+					c.Shutdown()
+				}
+				m.failed = true
+				return true
+			}
+		}
+	}
+	return false
 }
