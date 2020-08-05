@@ -59,6 +59,11 @@ func ScalingChart(path string) (*chart.Chart, error) {
 		// Max TargetRPS
 		requests[methodName].YValues = append(requests[methodName].YValues, yValue)
 	}
+	for _, v := range requests {
+		if len(v.XValues) == 0 || len(v.YValues) == 0 {
+			return nil, errors.New("empty csv, nothing to report")
+		}
+	}
 	var series []chart.Series
 	var colorIndex int
 	for key, value := range requests {
@@ -149,6 +154,11 @@ func ResponsesChart(chartTitle string, path string) (*chart.Chart, error) {
 			return nil, err
 		}
 		percs["p99"].YValues = append(percs["p99"].YValues, yValue99)
+	}
+	for _, v := range percs {
+		if len(v.XValues) == 0 || len(v.YValues) == 0 {
+			return nil, errors.New("empty csv, nothing to report")
+		}
 	}
 	var series []chart.Series
 	var colorIndex int
