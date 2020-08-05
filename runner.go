@@ -186,7 +186,8 @@ func (r *Runner) report() {
 		r.L.Infof("reporting graphs: %s", r.percLogFilename)
 		chart, err := ResponsesChart(r.Name, r.percLogFilename)
 		if err != nil {
-			log.Fatal(err)
+			r.L.Error(err)
+			return
 		}
 		RenderChart(chart, fmt.Sprintf(ReportGraphFile, r.Name, r.runId, time.Now().Format(time.RFC3339)))
 	}
