@@ -37,7 +37,7 @@ func withControllableAttackers(cfg ControllableConfig) {
 type ServiceLatencyChangeConfig struct {
 	R             *Runner
 	Interval      time.Duration
-	LatencyStepMs uint64
+	LatencyStepMs int64
 	Times         int
 	LatencyFlag   int
 }
@@ -49,17 +49,15 @@ const (
 
 // nolint
 func changeAttackersLatency(cfg ServiceLatencyChangeConfig) {
-	go func() {
-		for i := 0; i < cfg.Times; i++ {
-			if cfg.LatencyFlag == increaseLatency {
-				atomic.AddUint64(&cfg.R.controlled.Sleep, cfg.LatencyStepMs)
-			}
-			if cfg.LatencyFlag == decreaseLatency {
-				atomic.AddUint64(&cfg.R.controlled.Sleep, -cfg.LatencyStepMs)
-			}
-			time.Sleep(cfg.Interval)
+	for i := 0; i < cfg.Times; i++ {
+		if cfg.LatencyFlag == increaseLatency {
+			atomic.AddInt64(&cfg.R.controlled.Sleep, cfg.LatencyStepMs)
 		}
-		cfg.R.L.Infof("=== done changing latency ===")
-		cfg.R.L.Infof("=== keeping latency constant for new attackers ===")
-	}()
+		if cfg.LatencyFlag == decreaseLatency {
+			atomic.AddInt64(&cfg.R.controlled.Sleep, -cfg.LatencyStepMs)
+		}
+		time.Sleep(cfg.Interval)
+	}
+	cfg.R.L.Infof("=== done changing latency ===")
+	cfg.R.L.Infof("=== keeping latency constant for new attackers ===")
 }
