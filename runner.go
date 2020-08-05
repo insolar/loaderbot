@@ -25,9 +25,9 @@ const (
 	DefaultMetricsUpdateInterval = 1 * time.Second
 	DefaultScheduleQueueCapacity = 10000
 	DefaultResultsQueueCapacity  = 10000
-	MetricsLogFile               = "requests_%s_%s_%s.csv"
-	PercsLogFile                 = "percs_%s_%s_%s.csv"
-	ReportGraphFile              = "percs_%s_%s_%s.png"
+	MetricsLogFile               = "requests_%s_%s_%d.csv"
+	PercsLogFile                 = "percs_%s_%s_%d.csv"
+	ReportGraphFile              = "percs_%s_%s_%d.png"
 )
 
 var (
@@ -137,8 +137,9 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 	}
 	if cfg.ReportOptions.CSV {
 		r.runId = uuid.New().String()
-		r.metricsLogFilename = fmt.Sprintf(MetricsLogFile, cfg.Name, r.runId, time.Now().Format(time.RFC3339))
-		r.percLogFilename = fmt.Sprintf(PercsLogFile, cfg.Name, r.runId, time.Now().Format(time.RFC3339))
+		tn := time.Now().Unix()
+		r.metricsLogFilename = fmt.Sprintf(MetricsLogFile, cfg.Name, r.runId, tn)
+		r.percLogFilename = fmt.Sprintf(PercsLogFile, cfg.Name, r.runId, tn)
 		r.metricsLogFile = csv.NewWriter(CreateFileOrReplace(r.metricsLogFilename))
 		r.percLogFile = csv.NewWriter(CreateFileOrReplace(r.percLogFilename))
 		_ = r.metricsLogFile.Write(ResultsCsvHeader)
@@ -189,7 +190,7 @@ func (r *Runner) report() {
 			r.L.Error(err)
 			return
 		}
-		RenderChart(chart, fmt.Sprintf(ReportGraphFile, r.Name, r.runId, time.Now().Format(time.RFC3339)))
+		RenderChart(chart, fmt.Sprintf(ReportGraphFile, r.Name, r.runId, time.Now().Unix()))
 	}
 }
 
