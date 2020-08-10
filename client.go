@@ -149,10 +149,10 @@ func (m *ClusterClient) collectResults() {
 					currentTickMetrics.Metrics.Requests,
 					currentTickMetrics.Metrics.successLogEntry(),
 				)
-			}
-			// shutdown other Nodes if error
-			if m.shutdownOnNodeSampleError(currentTickMetrics) {
-				return
+				// shutdown other Nodes if error is present in tick
+				if m.shutdownOnNodeSampleError(currentTickMetrics) {
+					return
+				}
 			}
 		default:
 			if atomic.LoadInt32(&m.activeClients) == 0 {

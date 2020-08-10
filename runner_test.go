@@ -106,7 +106,7 @@ func TestRunnerFailOnFirstError(t *testing.T) {
 	withControllableAttackers(cfg)
 	serviceErrorAfter(serviceError, 1*time.Nanosecond)
 	_, _ = r.Run(context.TODO())
-	require.Equal(t, true, r.Failed)
+	require.Equal(t, int64(1), r.Failed)
 }
 
 func TestRunnerHangedRequestsAfterTimeoutNoError(t *testing.T) {
@@ -210,7 +210,7 @@ func TestRunnerConstantLoad(t *testing.T) {
 	r.controlled.Sleep = 300
 	maxRPS, err := r.Run(context.TODO())
 	require.NoError(t, err)
-	require.Greater(t, int(maxRPS), 30)
+	require.GreaterOrEqual(t, int(maxRPS), 30)
 	require.Less(t, int(maxRPS), 33)
 
 	r2 := NewRunner(&RunnerConfig{
@@ -285,7 +285,7 @@ func TestDynamicLatencySync(t *testing.T) {
 		Times:         30,
 		LatencyFlag:   decreaseLatency,
 	}
-	changeAttackersLatency(latCfg)
+	go changeAttackersLatency(latCfg)
 	_, _ = r.Run(context.TODO())
 }
 
@@ -306,7 +306,7 @@ func TestRunnerRealServiceAttack(t *testing.T) {
 }
 
 func TestAllJitter(t *testing.T) {
-	// t.Skip("only manual run")
+	t.Skip("only manual run")
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner_open_world_decrease",
 		SystemMode:      OpenWorldSystem,

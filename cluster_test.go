@@ -24,7 +24,7 @@ func TestClusterClient(t *testing.T) {
 		StartRPS:        10,
 		StepDurationSec: 2,
 		StepRPS:         20,
-		TestTimeSec:     6,
+		TestTimeSec:     60,
 		LogEncoding:     "console",
 		LogLevel:        "info",
 		ReportOptions: &ReportOptions{

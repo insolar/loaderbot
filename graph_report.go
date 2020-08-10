@@ -10,11 +10,13 @@ package loaderbot
 import (
 	"encoding/csv"
 	"errors"
-	"github.com/wcharczuk/go-chart"
 	"io"
 	"log"
 	"os"
+	"sort"
 	"strconv"
+
+	"github.com/wcharczuk/go-chart"
 )
 
 type ChartLine struct {
@@ -67,6 +69,7 @@ func ScalingChart(path string) (*chart.Chart, error) {
 	var series []chart.Series
 	var colorIndex int
 	for key, value := range requests {
+		sort.Float64s(value.XValues)
 		series = append(series, chart.ContinuousSeries{
 			Name: key,
 			Style: chart.Style{
@@ -163,6 +166,7 @@ func ResponsesChart(chartTitle string, path string) (*chart.Chart, error) {
 	var series []chart.Series
 	var colorIndex int
 	for key, value := range percs {
+		sort.Float64s(value.XValues)
 		line := chart.ContinuousSeries{
 			Name: key,
 			Style: chart.Style{

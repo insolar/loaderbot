@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"log"
 	"net"
+	"sync/atomic"
 
 	"google.golang.org/grpc"
 )
@@ -28,7 +29,7 @@ func (r *Runner) streamResults(srv Loader_RunServer) {
 			r.L.Error(err)
 		}
 		// send last tick batch and shutdown, other nodes will be cancelled by client
-		if r.Cfg.FailOnFirstError && r.Failed {
+		if r.Cfg.FailOnFirstError && atomic.LoadInt64(&r.Failed) == 1 {
 			r.CancelFunc()
 		}
 	}

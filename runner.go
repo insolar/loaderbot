@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,7 +23,6 @@ import (
 )
 
 const (
-	DefaultMetricsUpdateInterval = 1 * time.Second
 	DefaultScheduleQueueCapacity = 10000
 	DefaultResultsQueueCapacity  = 10000
 	MetricsLogFile               = "requests_%s_%s_%d.csv"
@@ -108,7 +108,7 @@ type Runner struct {
 	// uniq error messages
 	uniqErrors map[string]int
 	// Failed means there some errors in test
-	Failed bool
+	Failed int64
 	// data used to control attackers in test
 	controlled Controlled
 	// TestData data shared between attackers during test
@@ -213,9 +213,9 @@ func (r *Runner) flushLogs() {
 func (r *Runner) schedule() {
 	go func() {
 		var (
-			stepTicker          = time.NewTicker(time.Duration(r.Cfg.StepDurationSec) * time.Second)
 			currentStep         = 1
 			currentTick         = 1
+			ticksInStep         = r.Cfg.StepDurationSec
 			totalRequestsFired  = 0
 			requestsFiredInTick = 0
 		)
@@ -224,12 +224,6 @@ func (r *Runner) schedule() {
 			case <-r.TimeoutCtx.Done():
 				r.L.Infof("total requests fired: %d", totalRequestsFired)
 				return
-			case <-stepTicker.C:
-				r.targetRPS += r.Cfg.StepRPS
-				r.rl = ratelimit.New(r.targetRPS)
-				currentStep += 1
-				r.L.Infof("next step: step -> %d, rps -> %d", currentStep, r.targetRPS)
-				r.L.Infof("current active goroutines: %d", runtime.NumGoroutine())
 			default:
 				r.rl.Take()
 				r.next <- attackToken{
@@ -242,13 +236,13 @@ func (r *Runner) schedule() {
 				if requestsFiredInTick == r.targetRPS {
 					currentTick += 1
 					requestsFiredInTick = 0
-				}
-				if currentTick%currentStep == 0 {
-					r.targetRPS += r.Cfg.StepRPS
-					r.rl = ratelimit.New(r.targetRPS)
-					currentStep += 1
-					r.L.Infof("next step: step -> %d, rps -> %d", currentStep, r.targetRPS)
-					r.L.Infof("current active goroutines: %d", runtime.NumGoroutine())
+					if currentTick%ticksInStep == 0 {
+						r.targetRPS += r.Cfg.StepRPS
+						r.rl = ratelimit.New(r.targetRPS)
+						currentStep += 1
+						r.L.Infof("next step: step -> %d, rps -> %d", currentStep, r.targetRPS)
+						r.L.Infof("current active goroutines: %d", runtime.NumGoroutine())
+					}
 				}
 			}
 		}
@@ -280,7 +274,7 @@ func (r *Runner) collectResults() {
 					r.uniqErrors[res.DoResult.Error] += 1
 					r.L.Debugf("attacker error: %s", res.DoResult.Error)
 					if r.Cfg.FailOnFirstError {
-						r.Failed = true
+						atomic.AddInt64(&r.Failed, 1)
 					}
 					errorForReport = res.DoResult.Error
 				}
