@@ -29,11 +29,11 @@ type RunnerConfig struct {
 	// SystemMode PrivateSystem | OpenWorldSystem
 	// PrivateSystem:
 	// if application under test is a private system sync runner attackers will wait for response
-	// in case your system is private and you know how many sync clients can act
+	// in case your system is private and you know how many sync Nodes can act
 	// OpenWorldSystem:
 	// if application under test is an open world system async runner attackers will fire requests without waiting
-	// it creates some inaccuracy in results, so you can check latencies using service metrics to be precise,
-	// but the test will be more realistic from clients point of view
+	// it creates some inaccuracy in Results, so you can check latencies using service metrics to be precise,
+	// but the test will be more realistic from Nodes point of view
 	SystemMode SystemMode
 	// Attackers constant amount of attackers,
 	// if SystemMode is "OpenWorldSystem", attackers will be spawn on demand to meet rps
@@ -66,6 +66,12 @@ type RunnerConfig struct {
 	LogEncoding string
 	// Reporting options, csv/png/stream
 	ReportOptions *ReportOptions
+	// ClusterOptions
+	ClusterOptions *ClusterOptions
+}
+
+type ClusterOptions struct {
+	Nodes []string
 }
 
 // ReportOptions reporting options

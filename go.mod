@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
+	github.com/golang/protobuf v1.4.2
 	github.com/google/uuid v1.1.1
 	github.com/ory/go-acc v0.2.3 // indirect
 	github.com/prometheus/common v0.4.0
@@ -16,4 +17,6 @@ require (
 	golang.org/x/image v0.0.0-20200618115811-c13761719519 // indirect
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
 	golang.org/x/tools v0.0.0-20200723000907-a7c6fd066f6d // indirect
+	google.golang.org/grpc v1.31.0
+	google.golang.org/protobuf v1.25.0
 )

@@ -22,7 +22,7 @@ type Metrics struct {
 	// Latest is the latest timestamp in a Result set.
 	Latest time.Time `json:"latest"`
 	// End is the latest timestamp in a Result set plus its latency.
-	End time.Time `json:"end"`
+	End time.Time `json:"End"`
 	// Duration is the duration of the attack.
 	Duration time.Duration `json:"duration"`
 	// Wait is the extra time waiting for responses from targets.
@@ -89,37 +89,37 @@ func (m Metrics) meanLogEntry() time.Duration {
 func (m *Metrics) add(r AttackResult) {
 	m.Requests++
 	// StatusCode is optional
-	if r.doResult.StatusCode > 0 {
-		m.StatusCodes[strconv.Itoa(r.doResult.StatusCode)]++
+	if r.DoResult.StatusCode > 0 {
+		m.StatusCodes[strconv.Itoa(r.DoResult.StatusCode)]++
 	}
-	m.Latencies.Total += r.elapsed
+	m.Latencies.Total += r.Elapsed
 
-	m.latencies.Add(float64(r.elapsed))
+	m.latencies.Add(float64(r.Elapsed))
 
-	if m.Earliest.IsZero() || m.Earliest.After(r.begin) {
-		m.Earliest = r.begin
-	}
-
-	if r.begin.After(m.Latest) {
-		m.Latest = r.begin
+	if m.Earliest.IsZero() || m.Earliest.After(r.Begin) {
+		m.Earliest = r.Begin
 	}
 
-	if end := r.end; end.After(m.End) {
+	if r.Begin.After(m.Latest) {
+		m.Latest = r.Begin
+	}
+
+	if end := r.End; end.After(m.End) {
 		m.End = end
 	}
 
-	if r.elapsed > m.Latencies.Max {
-		m.Latencies.Max = r.elapsed
+	if r.Elapsed > m.Latencies.Max {
+		m.Latencies.Max = r.Elapsed
 	}
 
-	if r.doResult.Error != nil {
-		if _, ok := m.errors[r.doResult.Error.Error()]; !ok {
-			m.errors[r.doResult.Error.Error()] = struct{}{}
-			m.Errors = append(m.Errors, r.doResult.Error.Error())
+	if r.DoResult.Error != "" {
+		if _, ok := m.errors[r.DoResult.Error]; !ok {
+			m.errors[r.DoResult.Error] = struct{}{}
+			m.Errors = append(m.Errors, r.DoResult.Error)
 		}
 		m.errorsCount++
 	} else {
-		if r.doResult.StatusCode == 0 || (r.doResult.StatusCode >= 200 && r.doResult.StatusCode < 400) {
+		if r.DoResult.StatusCode == 0 || (r.DoResult.StatusCode >= 200 && r.DoResult.StatusCode < 400) {
 			m.success++
 		}
 	}

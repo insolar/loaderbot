@@ -30,9 +30,14 @@ func (a *AttackerExample) Setup(c loaderbot.RunnerConfig) error {
 
 func (a *AttackerExample) Do(_ context.Context) loaderbot.DoResult {
 	_, err := a.client.Get(a.Cfg.TargetUrl)
+	if err != nil {
+		return loaderbot.DoResult{
+			RequestLabel: a.Name,
+			Error:        err.Error(),
+		}
+	}
 	return loaderbot.DoResult{
 		RequestLabel: a.Name,
-		Error:        err,
 	}
 }
 

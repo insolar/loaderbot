@@ -28,10 +28,13 @@ func (a *HTTPAttackerExample) Setup(c RunnerConfig) error {
 
 func (a *HTTPAttackerExample) Do(_ context.Context) DoResult {
 	_, err := a.client.Get(a.Cfg.TargetUrl)
-	return DoResult{
-		RequestLabel: a.Name,
-		Error:        err,
+	if err != nil {
+		return DoResult{
+			RequestLabel: a.Name,
+			Error:        err.Error(),
+		}
 	}
+	return DoResult{RequestLabel: a.Name}
 }
 
 func (a *HTTPAttackerExample) Teardown() error {

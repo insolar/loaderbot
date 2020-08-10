@@ -50,9 +50,14 @@ func (a *DataAttackerExample) Do(_ context.Context) loaderbot.DoResult {
 	data := a.TestData.(*SharedData).GetNextData()
 	a.Runner.L.Infof("firing with data: %s", data)
 	_, err := a.client.Get(a.Cfg.TargetUrl)
+	if err != nil {
+		return loaderbot.DoResult{
+			RequestLabel: a.Name,
+			Error:        err.Error(),
+		}
+	}
 	return loaderbot.DoResult{
 		RequestLabel: a.Name,
-		Error:        err,
 	}
 }
 

@@ -8,6 +8,7 @@
 package main
 
 import (
+	"context"
 	"sync"
 
 	"github.com/insolar/loaderbot"
@@ -30,5 +31,5 @@ func main() {
 		Index: 0,
 		Data:  []string{"data1", "data2", "data3"},
 	})
-	_, _ = lt.Run()
+	_, _ = lt.Run(context.TODO())
 }

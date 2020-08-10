@@ -8,6 +8,8 @@
 package loaderbot
 
 import (
+	"bytes"
+	"encoding/gob"
 	"log"
 	"os"
 	"os/signal"
@@ -31,12 +33,12 @@ func (r *Runner) handleShutdownSignal() {
 			if r.Cfg.ReportOptions.CSV {
 				r.flushLogs()
 			}
-			r.cancel()
+			r.CancelFunc()
 			r.L.Infof("exit signal received, exiting")
 			if r.Cfg.GoroutinesDump {
 				buf := make([]byte, 1<<20)
 				stacklen := runtime.Stack(buf, true)
-				r.L.Infof("=== received SIGTERM ===\n*** goroutine dump...\n%s\n*** end\n", buf[:stacklen])
+				r.L.Infof("=== received SIGTERM ===\n*** goroutine dump...\n%s\n*** End\n", buf[:stacklen])
 			}
 			os.Exit(1)
 		}
@@ -82,4 +84,24 @@ func MaxRPS(array []float64) float64 {
 		}
 	}
 	return max
+}
+
+// for ease of use cfg now is just bytes, create pb types later
+func MarshalConfigGob(cfg interface{}) []byte {
+	var b bytes.Buffer
+	enc := gob.NewEncoder(&b)
+	if err := enc.Encode(cfg); err != nil {
+		log.Fatal(err)
+	}
+	return b.Bytes()
+}
+
+func UnmarshalConfigGob(d []byte) RunnerConfig {
+	b := bytes.NewBuffer(d)
+	dec := gob.NewDecoder(b)
+	var cfg RunnerConfig
+	if err := dec.Decode(&cfg); err != nil {
+		log.Fatal(err)
+	}
+	return cfg
 }

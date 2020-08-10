@@ -17,6 +17,9 @@ go-acc: ## install coverage tool
 
 install-deps: golangci go-acc ## install necessary dependencies
 
+protoc_gen: ## generate protobuf
+	protoc service.proto --go_out=plugins=grpc:. -I=.
+
 .PHONY: test
 test:  ## run all tests
 	go test -v ./... -race -count $(TEST_COUNT) $(TEST_ARGS)

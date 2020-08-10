@@ -35,7 +35,7 @@ func TestAttackSuccess(t *testing.T) {
 	r.controlled.Sleep = 10
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.TestTimeSec)*time.Second)
 	r.TimeoutCtx = ctx
-	r.cancel = cancel
+	r.CancelFunc = cancel
 
 	// sync
 	wg := &sync.WaitGroup{}
@@ -48,10 +48,10 @@ func TestAttackSuccess(t *testing.T) {
 		Tick: 1,
 	}
 	res := <-r.results
-	if got, want := res.doResult.Error, error(nil); got != want {
+	if got, want := res.DoResult.Error, ""; got != want {
 		t.Fatalf("got %v want %v", got, want)
 	}
-	if got, want := int(res.elapsed), int(r.controlled.Sleep); got < want {
+	if got, want := int(res.Elapsed), int(r.controlled.Sleep); got < want {
 		t.Fatalf("got %v want >= %v", got, want)
 	}
 	// async
@@ -65,10 +65,10 @@ func TestAttackSuccess(t *testing.T) {
 		Tick: 1,
 	}
 	res2 := <-r.results
-	if got, want := res2.doResult.Error, error(nil); got != want {
+	if got, want := res2.DoResult.Error, ""; got != want {
 		t.Fatalf("got %v want %v", got, want)
 	}
-	if got, want := int(res.elapsed), int(r.controlled.Sleep); got < want {
+	if got, want := int(res.Elapsed), int(r.controlled.Sleep); got < want {
 		t.Fatalf("got %v want >= %v", got, want)
 	}
 }
@@ -78,7 +78,7 @@ func TestAttackTimeout(t *testing.T) {
 	r.controlled.Sleep = 2000
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.TestTimeSec)*time.Second)
 	r.TimeoutCtx = ctx
-	r.cancel = cancel
+	r.CancelFunc = cancel
 
 	// sync
 	wg := &sync.WaitGroup{}
@@ -91,7 +91,7 @@ func TestAttackTimeout(t *testing.T) {
 		Tick: 1,
 	}
 	res := <-r.results
-	if got, want := res.doResult.Error, errAttackDoTimedOut; got != want {
+	if got, want := res.DoResult.Error, errAttackDoTimedOut; got != want {
 		t.Fatalf("got %v want %v", got, want)
 	}
 
@@ -106,7 +106,7 @@ func TestAttackTimeout(t *testing.T) {
 		Tick: 1,
 	}
 	res2 := <-r.results
-	if got, want := res2.doResult.Error, errAttackDoTimedOut; got != want {
+	if got, want := res2.DoResult.Error, errAttackDoTimedOut; got != want {
 		t.Fatalf("got %v want %v", got, want)
 	}
 }

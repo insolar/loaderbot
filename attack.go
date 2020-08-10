@@ -19,7 +19,7 @@ type Attack interface {
 	// It may want to access the Config of the Runner.
 	Setup(c RunnerConfig) error
 	// Do performs one request and is executed in a separate goroutine.
-	// The context is used to cancel the request on timeout.
+	// The context is used to CancelFunc the request on timeout.
 	Do(ctx context.Context) DoResult
 	// Teardown can be used to close the connection to the service
 	Teardown() error
@@ -63,11 +63,11 @@ func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
 			tEnd := time.Now()
 
 			atkResult := AttackResult{
-				nextMsg:  nextMsg,
-				begin:    tStart,
-				end:      tEnd,
-				elapsed:  tEnd.Sub(tStart),
-				doResult: doResult,
+				AttackToken: nextMsg,
+				Begin:       tStart,
+				End:         tEnd,
+				Elapsed:     tEnd.Sub(tStart),
+				DoResult:    doResult,
 			}
 			requestCtxCancel()
 			r.results <- atkResult
@@ -112,11 +112,11 @@ func asyncAttack(a Attack, r *Runner, wg *sync.WaitGroup) {
 				tEnd := time.Now()
 
 				atkResult := AttackResult{
-					nextMsg:  nextMsg,
-					begin:    tStart,
-					end:      tEnd,
-					elapsed:  tEnd.Sub(tStart),
-					doResult: doResult,
+					AttackToken: nextMsg,
+					Begin:       tStart,
+					End:         tEnd,
+					Elapsed:     tEnd.Sub(tStart),
+					DoResult:    doResult,
 				}
 				requestCtxCancel()
 				r.results <- atkResult
