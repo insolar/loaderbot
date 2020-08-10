@@ -13,10 +13,9 @@ import (
 	"io"
 	"log"
 	"os"
-	"sort"
 	"strconv"
 
-	"github.com/wcharczuk/go-chart"
+	"github.com/go-echarts/go-echarts/charts"
 )
 
 type ChartLine struct {
@@ -24,9 +23,8 @@ type ChartLine struct {
 	YValues []float64
 }
 
-func ScalingChart(path string) (*chart.Chart, error) {
-	reader, close := openCSV(path)
-	defer close()
+func parseScalingData(path string) (map[string]*ChartLine, error) {
+	reader := openCSV(path)
 	requests := make(map[string]*ChartLine)
 
 	for {
@@ -66,46 +64,18 @@ func ScalingChart(path string) (*chart.Chart, error) {
 			return nil, errors.New("empty csv, nothing to report")
 		}
 	}
-	var series []chart.Series
-	var colorIndex int
-	for key, value := range requests {
-		sort.Float64s(value.XValues)
-		series = append(series, chart.ContinuousSeries{
-			Name: key,
-			Style: chart.Style{
-				StrokeColor: chart.GetDefaultColor(colorIndex).WithAlpha(255),
-				DotWidth:    3.0,
-				StrokeWidth: 3,
-			},
-			XValues: value.XValues,
-			YValues: value.YValues,
-		})
-		colorIndex++
-	}
-	chartData := &chart.Chart{
-		XAxis: chart.XAxis{
-			Name: "VE count",
-		},
-		YAxis: chart.YAxis{
-			Name: "Max TargetRPS",
-		},
-		Series: series,
-	}
-	chartData.Elements = []chart.Renderable{
-		chart.LegendLeft(chartData),
-	}
-	return chartData, nil
+	return requests, nil
 }
 
-func ResponsesChart(chartTitle string, path string) (*chart.Chart, error) {
-	reader, close := openCSV(path)
-	defer close()
+func parsePercsData(path string) (map[string]*ChartLine, error) {
+	reader := openCSV(path)
 	percs := map[string]*ChartLine{
 		"rps": {},
 		"p50": {},
 		"p95": {},
 		"p99": {},
 	}
+	// skip csv header
 	_, _ = reader.Read()
 
 	for {
@@ -163,80 +133,77 @@ func ResponsesChart(chartTitle string, path string) (*chart.Chart, error) {
 			return nil, errors.New("empty csv, nothing to report")
 		}
 	}
-	var series []chart.Series
-	var colorIndex int
-	for key, value := range percs {
-		sort.Float64s(value.XValues)
-		line := chart.ContinuousSeries{
-			Name: key,
-			Style: chart.Style{
-				StrokeColor: chart.GetDefaultColor(colorIndex).WithAlpha(255),
-				DotWidth:    3.0,
-				StrokeWidth: 3,
-			},
-			XValues: value.XValues,
-			YValues: value.YValues,
-		}
-		if key == "rps" {
-			line.YAxis = chart.YAxisSecondary
-		}
-		series = append(series, line)
-		colorIndex++
-	}
+	return percs, nil
+}
 
-	chartData := &chart.Chart{
-		Title: chartTitle,
-		Background: chart.Style{
-			Padding: chart.Box{
-				Top:  20,
-				Left: 150,
-			},
-		},
-		XAxis: chart.XAxis{
-			Name: "Test time (Seconds)",
-		},
-		YAxis: chart.YAxis{
-			Name: "Response time (Ms)",
-		},
-		YAxisSecondary: chart.YAxis{
-			Name: "RPS",
-		},
-		Series: series,
-		Width:  800,
-		Height: 600,
+func PercsChart(path string, title string) (*charts.Line, error) {
+	d, err := parsePercsData(path)
+	if err != nil {
+		return nil, err
 	}
-	chartData.Elements = []chart.Renderable{
-		chart.LegendLeft(chartData),
+	line := charts.NewLine()
+	line.SetGlobalOptions(
+		charts.TitleOpts{Title: title},
+		charts.XAxisOpts{Name: "Time (sec)"},
+		charts.YAxisOpts{Name: "Response (ms)"},
+	)
+	line.AddXAxis(d["rps"].XValues)
+	for k, v := range d {
+		line.AddYAxis(k, v.YValues, defaultMaxLabel(k)...)
 	}
-	return chartData, nil
+	return line, nil
+}
+
+func ScalingChart(path string, title string) (*charts.Line, error) {
+	d, err := parseScalingData(path)
+	if err != nil {
+		return nil, err
+	}
+	line := charts.NewLine()
+	line.SetGlobalOptions(
+		charts.TitleOpts{Title: title},
+		charts.XAxisOpts{Name: "Nodes"},
+		charts.YAxisOpts{Name: "RPS"},
+	)
+	for k, v := range d {
+		line.AddXAxis(v.XValues)
+		line.AddYAxis(k, v.YValues, defaultMaxLabel(k)...)
+	}
+	return line, nil
+}
+
+func RenderEChart(data *charts.Line, name string) {
+	f, err := os.Create(name)
+	if err != nil {
+		log.Println(err)
+	}
+	if err := data.Render(f); err != nil {
+		log.Fatal(err)
+	}
 }
 
 // ReportScaling scaling chart, data must be written in csv in format:
 // ${handle_name},${network_nodes},${max_rps}
-func ReportScaling(inputCsv, outputPng string) {
-	chartData, err := ScalingChart(inputCsv)
+func ReportScaling(inputCsv, outHtml string) {
+	chartData, err := ScalingChart(inputCsv, "scaling")
 	if err != nil {
 		log.Fatal("Couldn't read and parse requests", err)
 	}
-	RenderChart(chartData, outputPng)
+	RenderEChart(chartData, outHtml)
 }
 
-func RenderChart(chartData *chart.Chart, fileName string) {
-	file, err := os.Create(fileName)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
-	err = chartData.Render(chart.PNG, file)
-	if err != nil {
-		log.Fatal(err)
+// draws max label for every line
+func defaultMaxLabel(metric string) []charts.SeriesOptser {
+	return []charts.SeriesOptser{
+		charts.MPNameTypeItem{Name: "max " + metric, Type: "max"},
+		charts.MPStyleOpts{Label: charts.LabelTextOpts{Show: true}},
 	}
 }
 
-func openCSV(path string) (*csv.Reader, func() error) {
+func openCSV(path string) *csv.Reader {
 	csvFile, err := os.Open(path)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return csv.NewReader(csvFile), csvFile.Close
+	return csv.NewReader(csvFile)
 }

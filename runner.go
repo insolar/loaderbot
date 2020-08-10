@@ -27,7 +27,7 @@ const (
 	DefaultResultsQueueCapacity  = 10000
 	MetricsLogFile               = "requests_%s_%s_%d.csv"
 	PercsLogFile                 = "percs_%s_%s_%d.csv"
-	ReportGraphFile              = "percs_%s_%s_%d.png"
+	ReportGraphFile              = "percs_%s_%s_%d.html"
 )
 
 var (
@@ -198,12 +198,12 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 func (r *Runner) report() {
 	if r.Cfg.ReportOptions.PNG {
 		r.L.Infof("reporting graphs: %s", r.percLogFilename)
-		chart, err := ResponsesChart(r.Name, r.percLogFilename)
+		chart, err := PercsChart(r.percLogFilename, r.Name)
 		if err != nil {
 			r.L.Error(err)
 			return
 		}
-		RenderChart(chart, fmt.Sprintf(ReportGraphFile, r.Name, r.runId, time.Now().Unix()))
+		RenderEChart(chart, fmt.Sprintf(ReportGraphFile, r.Name, r.runId, time.Now().Unix()))
 	}
 }
 
@@ -263,9 +263,6 @@ func (r *Runner) collectResults() {
 			case <-r.TimeoutCtx.Done():
 				r.L.Infof("total requests stored: %d", totalRequestsStored)
 				r.printErrors()
-				if r.Cfg.ReportOptions.CSV {
-					r.flushLogs()
-				}
 				close(r.OutResults)
 				return
 			case res := <-r.results:
