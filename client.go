@@ -138,7 +138,7 @@ func (m *ClusterClient) collectResults() {
 				}
 				currentTickMetrics.Metrics.update()
 				m.L.Infof(
-					"CLUSTER step: %d, tick: %d, rate [%4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
+					"step: %d, tick: %d, rate [%4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
 					token.Step,
 					tick,
 					currentTickMetrics.Metrics.Rate,
