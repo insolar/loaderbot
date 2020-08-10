@@ -58,6 +58,8 @@ type RunnerConfig struct {
 	GoroutinesDump bool
 	// FailOnFirstError fails test on first error
 	FailOnFirstError bool
+	// Metadata all other data required for test setup
+	Metadata map[string]interface{}
 	// LogLevel debug|info, etc.
 	LogLevel string
 	// LogEncoding json|console
