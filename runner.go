@@ -301,10 +301,10 @@ func (r *Runner) process100Requests(res AttackResult) {
 		m.update()
 		r.L.Infof(
 			"step: %d, tick: %d, rate [%4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
-			res.nextMsg.Step,
-			res.nextMsg.Tick,
+			res.AttackToken.Step,
+			res.AttackToken.Tick,
 			m.Rate,
-			res.nextMsg.TargetRPS,
+			res.AttackToken.TargetRPS,
 			m.Latencies.P50,
 			m.Latencies.P95,
 			m.Latencies.P99,

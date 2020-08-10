@@ -12,6 +12,8 @@ func TestClusterClient(t *testing.T) {
 	defer s1.GracefulStop()
 	s2 := RunService("localhost:50052")
 	defer s2.GracefulStop()
+	// s3 := RunService("localhost:50053")
+	// defer s3.GracefulStop()
 	time.Sleep(1 * time.Second)
 	c := NewClusterClient(&RunnerConfig{
 		TargetUrl:       "https://clients5.google.com/pagead/drt/dn/",
@@ -30,6 +32,7 @@ func TestClusterClient(t *testing.T) {
 		},
 		ClusterOptions: &ClusterOptions{
 			Nodes: []string{"localhost:50051", "localhost:50052"},
+			// Nodes: []string{"localhost:50051", "localhost:50052", "localhost:50053"},
 		},
 	})
 	c.Run()
