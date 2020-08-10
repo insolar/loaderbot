@@ -214,7 +214,7 @@ func (r *Runner) schedule() {
 	go func() {
 		var (
 			stepTicker          = time.NewTicker(time.Duration(r.Cfg.StepDurationSec) * time.Second)
-			currentStep         = 0
+			currentStep         = 1
 			currentTick         = 1
 			totalRequestsFired  = 0
 			requestsFiredInTick = 0
@@ -243,6 +243,13 @@ func (r *Runner) schedule() {
 					currentTick += 1
 					requestsFiredInTick = 0
 				}
+				if currentTick%currentStep == 0 {
+					r.targetRPS += r.Cfg.StepRPS
+					r.rl = ratelimit.New(r.targetRPS)
+					currentStep += 1
+					r.L.Infof("next step: step -> %d, rps -> %d", currentStep, r.targetRPS)
+					r.L.Infof("current active goroutines: %d", runtime.NumGoroutine())
+				}
 			}
 		}
 	}()
@@ -267,7 +274,6 @@ func (r *Runner) collectResults() {
 			case res := <-r.results:
 				r.L.Debugf("received result: %v", res)
 				totalRequestsStored++
-				r.processTickMetrics(res)
 
 				errorForReport := "ok"
 				if res.DoResult.Error != "" {

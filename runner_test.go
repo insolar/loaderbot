@@ -306,7 +306,7 @@ func TestRunnerRealServiceAttack(t *testing.T) {
 }
 
 func TestAllJitter(t *testing.T) {
-	t.Skip("only manual run")
+	// t.Skip("only manual run")
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner_open_world_decrease",
 		SystemMode:      OpenWorldSystem,
