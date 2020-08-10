@@ -188,6 +188,7 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 	r.L.Infof("runner exited")
 	maxRPS := r.maxRPS()
 	r.L.Infof("max rps: %.2f", maxRPS)
+	r.flushLogs()
 	r.report()
 	return maxRPS, nil
 }
