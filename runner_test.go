@@ -9,6 +9,7 @@ package loaderbot
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -171,8 +172,8 @@ func TestRunnerMaxRPSPrivateSystem(t *testing.T) {
 	r.controlled.Sleep = 300
 	maxRPS, err := r.Run(context.TODO())
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, int(maxRPS), 66)
-	require.Less(t, int(maxRPS), 70)
+	require.GreaterOrEqual(t, int(maxRPS), 69)
+	require.Less(t, int(maxRPS), 72)
 }
 
 func TestRunnerMaxRPSOpenWorldSystem(t *testing.T) {
@@ -231,29 +232,58 @@ func TestRunnerConstantLoad(t *testing.T) {
 	require.Less(t, int(maxRPS2), 33)
 }
 
-func TestDynamicLatency(t *testing.T) {
+func TestDynamicLatencyAsync(t *testing.T) {
 	t.Skip("only manual run")
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
 		SystemMode:      OpenWorldSystem,
-		Attackers:       1000,
 		AttackerTimeout: 25,
 		StartRPS:        100,
 		StepDurationSec: 5,
-		StepRPS:         100,
+		StepRPS:         200,
 		TestTimeSec:     60,
 		ReportOptions: &ReportOptions{
 			CSV: true,
 			PNG: true,
 		},
 	}, &ControlAttackerMock{}, nil)
-	r.controlled.Sleep = 100
+	r.controlled.Sleep = 10000
+
 	latCfg := ServiceLatencyChangeConfig{
 		R:             r,
-		Interval:      1 * time.Second,
-		LatencyStepMs: 300,
+		Interval:      5 * time.Second,
+		LatencyStepMs: 1000,
 		Times:         30,
-		LatencyFlag:   increaseLatency,
+		LatencyFlag:   decreaseLatency,
+	}
+	go changeAttackersLatency(latCfg)
+	_, _ = r.Run(context.TODO())
+}
+
+func TestDynamicLatencySync(t *testing.T) {
+	t.Skip("only manual run")
+	r := NewRunner(&RunnerConfig{
+		Name:            "test_runner",
+		SystemMode:      PrivateSystem,
+		Attackers:       5000,
+		AttackerTimeout: 25,
+		StartRPS:        10,
+		StepDurationSec: 3,
+		StepRPS:         20,
+		TestTimeSec:     60,
+		ReportOptions: &ReportOptions{
+			CSV: true,
+			PNG: true,
+		},
+	}, &ControlAttackerMock{}, nil)
+	r.controlled.Sleep = 20000
+
+	latCfg := ServiceLatencyChangeConfig{
+		R:             r,
+		Interval:      5 * time.Second,
+		LatencyStepMs: 1800,
+		Times:         30,
+		LatencyFlag:   decreaseLatency,
 	}
 	changeAttackersLatency(latCfg)
 	_, _ = r.Run(context.TODO())
@@ -264,8 +294,8 @@ func TestRunnerRealServiceAttack(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		TargetUrl:       "https://clients5.google.com/pagead/drt/dn/",
 		Name:            "test_runner",
-		SystemMode:      OpenWorldSystem,
-		Attackers:       1,
+		SystemMode:      PrivateSystem,
+		Attackers:       2000,
 		AttackerTimeout: 1,
 		StartRPS:        100,
 		StepDurationSec: 5,
@@ -273,4 +303,109 @@ func TestRunnerRealServiceAttack(t *testing.T) {
 		TestTimeSec:     30,
 	}, &HTTPAttackerExample{}, nil)
 	_, _ = r.Run(context.TODO())
+}
+
+func TestAllJitter(t *testing.T) {
+	t.Skip("only manual run")
+	r := NewRunner(&RunnerConfig{
+		Name:            "test_runner_open_world_decrease",
+		SystemMode:      OpenWorldSystem,
+		AttackerTimeout: 25,
+		StartRPS:        100,
+		StepDurationSec: 5,
+		StepRPS:         200,
+		TestTimeSec:     60,
+		ReportOptions: &ReportOptions{
+			CSV: true,
+			PNG: true,
+		},
+	}, &ControlAttackerMock{}, nil)
+	atomic.AddInt64(&r.controlled.Sleep, 10000)
+
+	latCfg := ServiceLatencyChangeConfig{
+		R:             r,
+		Interval:      5 * time.Second,
+		LatencyStepMs: 500,
+		Times:         12,
+		LatencyFlag:   decreaseLatency,
+	}
+	go changeAttackersLatency(latCfg)
+	_, _ = r.Run()
+
+	r2 := NewRunner(&RunnerConfig{
+		Name:            "test_runner_open_world_jitter",
+		SystemMode:      OpenWorldSystem,
+		AttackerTimeout: 25,
+		StartRPS:        100,
+		StepDurationSec: 5,
+		StepRPS:         200,
+		TestTimeSec:     60,
+		ReportOptions: &ReportOptions{
+			CSV: true,
+			PNG: true,
+		},
+	}, &ControlAttackerMock{}, nil)
+	atomic.AddInt64(&r2.controlled.Sleep, 10000)
+
+	go func() {
+		for i := 0; i < 300; i++ {
+			time.Sleep(100 * time.Millisecond)
+			atomic.AddInt64(&r2.controlled.Sleep, -9900)
+			time.Sleep(100 * time.Millisecond)
+			atomic.AddInt64(&r2.controlled.Sleep, 9900)
+		}
+	}()
+	_, _ = r2.Run()
+
+	r3 := NewRunner(&RunnerConfig{
+		Name:            "test_runner_private_decrease",
+		SystemMode:      PrivateSystem,
+		Attackers:       5000,
+		AttackerTimeout: 25,
+		StartRPS:        10,
+		StepDurationSec: 3,
+		StepRPS:         20,
+		TestTimeSec:     60,
+		ReportOptions: &ReportOptions{
+			CSV: true,
+			PNG: true,
+		},
+	}, &ControlAttackerMock{}, nil)
+	atomic.AddInt64(&r3.controlled.Sleep, 20000)
+
+	latCfg3 := ServiceLatencyChangeConfig{
+		R:             r3,
+		Interval:      5 * time.Second,
+		LatencyStepMs: 1800,
+		Times:         12,
+		LatencyFlag:   decreaseLatency,
+	}
+	go changeAttackersLatency(latCfg3)
+	_, _ = r3.Run()
+
+	r4 := NewRunner(&RunnerConfig{
+		Name:            "test_runner_private_jitter",
+		SystemMode:      PrivateSystem,
+		Attackers:       5000,
+		AttackerTimeout: 25,
+		StartRPS:        10,
+		StepDurationSec: 3,
+		StepRPS:         20,
+		TestTimeSec:     60,
+		ReportOptions: &ReportOptions{
+			CSV: true,
+			PNG: true,
+		},
+	}, &ControlAttackerMock{}, nil)
+	atomic.AddInt64(&r4.controlled.Sleep, 10000)
+
+	go func() {
+		for i := 0; i < 300; i++ {
+			time.Sleep(100 * time.Millisecond)
+			atomic.AddInt64(&r4.controlled.Sleep, -19900)
+			time.Sleep(100 * time.Millisecond)
+			atomic.AddInt64(&r4.controlled.Sleep, 19900)
+		}
+	}()
+	_, _ = r4.Run()
 }

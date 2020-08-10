@@ -39,7 +39,7 @@ func (a *ControlAttackerMock) Do(_ context.Context) DoResult {
 		return DoResult{RequestLabel: a.r.Name, Error: "service error"}
 	default:
 	}
-	sleepTime := atomic.LoadUint64(&a.r.controlled.Sleep)
+	sleepTime := atomic.LoadInt64(&a.r.controlled.Sleep)
 	time.Sleep(time.Duration(sleepTime) * time.Millisecond)
 	return DoResult{RequestLabel: a.r.Name}
 }

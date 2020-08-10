@@ -25,8 +25,9 @@ const (
 	DefaultMetricsUpdateInterval = 1 * time.Second
 	DefaultScheduleQueueCapacity = 10000
 	DefaultResultsQueueCapacity  = 10000
-	MetricsLogFile               = "%s_%s_%s.csv"
-	ReportGraphFile              = "%s_%s_%s.png"
+	MetricsLogFile               = "requests_%s_%s_%d.csv"
+	PercsLogFile                 = "percs_%s_%s_%d.csv"
+	ReportGraphFile              = "percs_%s_%s_%d.png"
 )
 
 var (
@@ -36,7 +37,7 @@ var (
 
 // Controlled struct for adding test vars
 type Controlled struct {
-	Sleep uint64
+	Sleep int64
 }
 
 // TestData shared test data
@@ -52,26 +53,26 @@ type ClusterTickMetrics struct {
 }
 
 type TickMetrics struct {
-	Samples []AttackResult
-	Metrics *Metrics
+	Samples  []AttackResult
+	Metrics  *Metrics
+	Reported bool
 }
 
 type attackToken struct {
 	TargetRPS int
 	Step      int
 	Tick      int
-	// Finalized means it's last attack token, after that metrics for tick is complete
-	Finalized bool
 }
 
 func (a attackToken) String() string {
-	return fmt.Sprintf("finalized: %v, targetRPS: %d, step: %d, tick: %d", a.Finalized, a.TargetRPS, a.Step, a.Tick)
+	return fmt.Sprintf("targetRPS: %d, step: %d, tick: %d", a.TargetRPS, a.Step, a.Tick)
 }
 
 // Runner provides test context for attacking target with constant amount of runners with a schedule
 type Runner struct {
 	// Name of a runner
-	Name string
+	Name  string
+	runId string
 	// Cfg runner config
 	Cfg *RunnerConfig
 	// prototype from which all attackers cloned
@@ -144,8 +145,10 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		r.attackers = append(r.attackers, a)
 	}
 	if cfg.ReportOptions.CSV {
-		r.metricsLogFilename = uniqLogFilename("requests_" + cfg.Name)
-		r.percLogFilename = uniqLogFilename("percs_" + cfg.Name)
+		r.runId = uuid.New().String()
+		tn := time.Now().Unix()
+		r.metricsLogFilename = fmt.Sprintf(MetricsLogFile, cfg.Name, r.runId, tn)
+		r.percLogFilename = fmt.Sprintf(PercsLogFile, cfg.Name, r.runId, tn)
 		r.metricsLogFile = csv.NewWriter(CreateFileOrReplace(r.metricsLogFilename))
 		r.percLogFile = csv.NewWriter(CreateFileOrReplace(r.percLogFilename))
 		_ = r.metricsLogFile.Write(ResultsCsvHeader)
@@ -172,7 +175,7 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 		case OpenWorldSystem:
 			go asyncAttack(attacker, r, wg)
 		case PrivateSystem:
-			r.L.Infof("starting attacker: %d", atkIdx)
+			r.L.Debugf("starting attacker: %d", atkIdx)
 			go attack(attacker, r, wg)
 		}
 	}
@@ -194,9 +197,10 @@ func (r *Runner) report() {
 		r.L.Infof("reporting graphs: %s", r.percLogFilename)
 		chart, err := ResponsesChart(r.Name, r.percLogFilename)
 		if err != nil {
-			log.Fatal(err)
+			r.L.Error(err)
+			return
 		}
-		RenderChart(chart, uniqReportGraphFilename("percs_"+r.Name))
+		RenderChart(chart, fmt.Sprintf(ReportGraphFile, r.Name, r.runId, time.Now().Unix()))
 	}
 }
 
@@ -209,27 +213,18 @@ func (r *Runner) flushLogs() {
 func (r *Runner) schedule() {
 	go func() {
 		var (
-			stepTicker  = time.NewTicker(time.Duration(r.Cfg.StepDurationSec) * time.Second)
-			tickTicker  = time.NewTicker(DefaultMetricsUpdateInterval)
-			currentStep = 0
-			currentTick = 0
+			stepTicker          = time.NewTicker(time.Duration(r.Cfg.StepDurationSec) * time.Second)
+			currentStep         = 0
+			currentTick         = 1
+			totalRequestsFired  = 0
+			requestsFiredInTick = 0
 		)
 		for {
 			select {
 			case <-r.TimeoutCtx.Done():
+				r.L.Infof("total requests fired: %d", totalRequestsFired)
 				return
-			case <-tickTicker.C:
-				r.rl.Take()
-				// set Finalized flag, it's a last load token, after that metrics can be aggregated
-				r.next <- attackToken{
-					TargetRPS: r.targetRPS,
-					Step:      currentStep,
-					Tick:      currentTick,
-					Finalized: true,
-				}
-				currentTick += 1
 			case <-stepTicker.C:
-				r.rl.Take()
 				r.targetRPS += r.Cfg.StepRPS
 				r.rl = ratelimit.New(r.targetRPS)
 				currentStep += 1
@@ -242,6 +237,12 @@ func (r *Runner) schedule() {
 					Step:      currentStep,
 					Tick:      currentTick,
 				}
+				totalRequestsFired++
+				requestsFiredInTick++
+				if requestsFiredInTick == r.targetRPS {
+					currentTick += 1
+					requestsFiredInTick = 0
+				}
 			}
 		}
 	}()
@@ -250,9 +251,13 @@ func (r *Runner) schedule() {
 // collectResults collects attackers Results and writes them to one of report options
 func (r *Runner) collectResults() {
 	go func() {
+		var (
+			totalRequestsStored = 0
+		)
 		for {
 			select {
 			case <-r.TimeoutCtx.Done():
+				r.L.Infof("total requests stored: %d", totalRequestsStored)
 				r.printErrors()
 				if r.Cfg.ReportOptions.CSV {
 					r.flushLogs()
@@ -261,6 +266,8 @@ func (r *Runner) collectResults() {
 				return
 			case res := <-r.results:
 				r.L.Debugf("received result: %v", res)
+				totalRequestsStored++
+				r.processTickMetrics(res)
 
 				errorForReport := "ok"
 				if res.DoResult.Error != "" {
@@ -283,6 +290,34 @@ func (r *Runner) collectResults() {
 	}()
 }
 
+// nolint
+func (r *Runner) process100Requests(res AttackResult) {
+	r.rawResultsLog = append(r.rawResultsLog, res)
+	if len(r.rawResultsLog)%100 == 0 {
+		m := NewMetrics()
+		for _, s := range r.rawResultsLog[len(r.rawResultsLog)-100:] {
+			m.add(s)
+		}
+		m.update()
+		r.L.Infof(
+			"step: %d, tick: %d, rate [%4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
+			res.nextMsg.Step,
+			res.nextMsg.Tick,
+			m.Rate,
+			res.nextMsg.TargetRPS,
+			m.Latencies.P50,
+			m.Latencies.P95,
+			m.Latencies.P99,
+			m.Requests,
+			m.successLogEntry(),
+		)
+		if r.Cfg.ReportOptions.CSV {
+			r.writePercentilesEntry(res, m)
+		}
+	}
+
+}
+
 // processTickMetrics add attack result to tick metrics, if it's last result in tick then report
 func (r *Runner) processTickMetrics(res AttackResult) {
 	// if no such tick, create new TickMetrics
@@ -290,12 +325,12 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 		r.tickMetrics[res.AttackToken.Tick] = &TickMetrics{
 			make([]AttackResult, 0),
 			NewMetrics(),
+			false,
 		}
 	}
 	currentTickMetrics := r.tickMetrics[res.AttackToken.Tick]
 	currentTickMetrics.Samples = append(currentTickMetrics.Samples, res)
-	// after all Results for tick is received we await last token when tick is changed and reporting
-	if res.AttackToken.Finalized {
+	if len(currentTickMetrics.Samples) == res.AttackToken.TargetRPS && !currentTickMetrics.Reported {
 		if r.Cfg.ReportOptions.Stream {
 			r.OutResults <- currentTickMetrics.Samples
 		}
@@ -318,6 +353,7 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 		if r.Cfg.ReportOptions.CSV {
 			r.writePercentilesEntry(res, currentTickMetrics.Metrics)
 		}
+		currentTickMetrics.Reported = true
 	}
 }
 
@@ -336,14 +372,6 @@ func (r *Runner) maxRPS() float64 {
 		rates = append(rates, m.Metrics.Rate)
 	}
 	return MaxRPS(rates)
-}
-
-func uniqLogFilename(name string) string {
-	return fmt.Sprintf(MetricsLogFile, name, uuid.New().String(), time.Now().Format(time.RFC3339))
-}
-
-func uniqReportGraphFilename(name string) string {
-	return fmt.Sprintf(ReportGraphFile, name, uuid.New().String(), time.Now().Format(time.RFC3339))
 }
 
 func (r *Runner) writeResultEntry(res AttackResult, errorMsg string) {
