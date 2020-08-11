@@ -14,12 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRenderScaling(t *testing.T) {
-	data, err := ScalingChart("example_csv_data/scaling.csv", "scaling")
-	if err != nil {
-		log.Fatal(err)
-	}
-	RenderEChart(data, "scaling.html")
+func TestReportScaling(t *testing.T) {
+	ReportScaling("example_csv_data/scaling.csv", "scaling.html")
 }
 
 func TestRenderPercs(t *testing.T) {
@@ -28,6 +24,7 @@ func TestRenderPercs(t *testing.T) {
 		log.Fatal(err)
 	}
 	RenderEChart(data, "responses.html")
+	html2png("responses.html")
 }
 
 func TestRenderErr(t *testing.T) {

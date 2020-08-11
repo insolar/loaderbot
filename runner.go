@@ -101,8 +101,9 @@ type Runner struct {
 	rawResultsLog      []AttackResult
 	metricsLogFilename string
 	// raw attack Results log file
-	metricsLogFile  *csv.Writer
-	percLogFilename string
+	metricsLogFile      *csv.Writer
+	percsReportFilename string
+	percLogFilename     string
 	// aggregated per second P50/95/99 percentiles of response time log
 	percLogFile *csv.Writer
 	// uniq error messages
@@ -149,6 +150,7 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		tn := time.Now().Unix()
 		r.metricsLogFilename = fmt.Sprintf(MetricsLogFile, cfg.Name, r.runId, tn)
 		r.percLogFilename = fmt.Sprintf(PercsLogFile, cfg.Name, r.runId, tn)
+		r.percsReportFilename = fmt.Sprintf(ReportGraphFile, r.Name, r.runId, tn)
 		r.metricsLogFile = csv.NewWriter(CreateFileOrReplace(r.metricsLogFilename))
 		r.percLogFile = csv.NewWriter(CreateFileOrReplace(r.percLogFilename))
 		_ = r.metricsLogFile.Write(ResultsCsvHeader)
@@ -203,7 +205,8 @@ func (r *Runner) report() {
 			r.L.Error(err)
 			return
 		}
-		RenderEChart(chart, fmt.Sprintf(ReportGraphFile, r.Name, r.runId, time.Now().Unix()))
+		RenderEChart(chart, r.percsReportFilename)
+		html2png(r.percsReportFilename)
 	}
 }
 
