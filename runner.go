@@ -80,7 +80,8 @@ type Runner struct {
 	// target RPS for step, changed every step
 	targetRPS int
 	// metrics for every tick
-	tickMetrics map[int]*TickMetrics
+	tickMetricsMu *sync.Mutex
+	tickMetrics   map[int]*TickMetrics
 	// ratelimiter for keeping constant rps inside test step
 	rl ratelimit.Limiter
 
@@ -132,6 +133,7 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		results:           make(chan AttackResult, DefaultResultsQueueCapacity),
 		OutResults:        make(chan []AttackResult, DefaultResultsQueueCapacity),
 		rawResultsLog:     make([]AttackResult, 0),
+		tickMetricsMu:     &sync.Mutex{},
 		tickMetrics:       make(map[int]*TickMetrics),
 		uniqErrors:        make(map[string]int),
 		controlled:        Controlled{},
@@ -293,34 +295,6 @@ func (r *Runner) collectResults() {
 	}()
 }
 
-// nolint
-func (r *Runner) process100Requests(res AttackResult) {
-	r.rawResultsLog = append(r.rawResultsLog, res)
-	if len(r.rawResultsLog)%100 == 0 {
-		m := NewMetrics()
-		for _, s := range r.rawResultsLog[len(r.rawResultsLog)-100:] {
-			m.add(s)
-		}
-		m.update()
-		r.L.Infof(
-			"step: %d, tick: %d, rate [%4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
-			res.AttackToken.Step,
-			res.AttackToken.Tick,
-			m.Rate,
-			res.AttackToken.TargetRPS,
-			m.Latencies.P50,
-			m.Latencies.P95,
-			m.Latencies.P99,
-			m.Requests,
-			m.successLogEntry(),
-		)
-		if r.Cfg.ReportOptions.CSV {
-			r.writePercentilesEntry(res, m)
-		}
-	}
-
-}
-
 // processTickMetrics add attack result to tick metrics, if it's last result in tick then report
 func (r *Runner) processTickMetrics(res AttackResult) {
 	// if no such tick, create new TickMetrics
@@ -337,6 +311,7 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 		if r.Cfg.ReportOptions.Stream {
 			r.OutResults <- currentTickMetrics.Samples
 		}
+		r.tickMetricsMu.Lock()
 		for _, s := range currentTickMetrics.Samples {
 			if s.DoResult.Error != "" && r.Cfg.FailOnFirstError {
 				r.CancelFunc()
@@ -344,6 +319,7 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 			currentTickMetrics.Metrics.add(s)
 		}
 		currentTickMetrics.Metrics.update()
+		r.tickMetricsMu.Unlock()
 		r.L.Infof(
 			"step: %d, tick: %d, rate [%4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
 			res.AttackToken.Step,
@@ -373,6 +349,8 @@ func (r *Runner) printErrors() {
 
 // maxRPS calculate max rps for test among ticks
 func (r *Runner) maxRPS() float64 {
+	r.tickMetricsMu.Lock()
+	defer r.tickMetricsMu.Unlock()
 	rates := make([]float64, 0)
 	for _, m := range r.tickMetrics {
 		rates = append(rates, m.Metrics.Rate)
