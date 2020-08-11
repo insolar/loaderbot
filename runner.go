@@ -338,6 +338,9 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 			r.OutResults <- currentTickMetrics.Samples
 		}
 		for _, s := range currentTickMetrics.Samples {
+			if s.DoResult.Error != "" && r.Cfg.FailOnFirstError {
+				r.CancelFunc()
+			}
 			currentTickMetrics.Metrics.add(s)
 		}
 		currentTickMetrics.Metrics.update()
