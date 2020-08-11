@@ -27,7 +27,7 @@ const (
 	DefaultResultsQueueCapacity  = 10000
 	MetricsLogFile               = "requests_%s_%s_%d.csv"
 	PercsLogFile                 = "percs_%s_%s_%d.csv"
-	ReportGraphFile              = "percs_%s_%s_%d.png"
+	ReportGraphFile              = "percs_%s_%s_%d.html"
 )
 
 var (
@@ -80,7 +80,8 @@ type Runner struct {
 	// target RPS for step, changed every step
 	targetRPS int
 	// metrics for every tick
-	tickMetrics map[int]*TickMetrics
+	tickMetricsMu *sync.Mutex
+	tickMetrics   map[int]*TickMetrics
 	// ratelimiter for keeping constant rps inside test step
 	rl ratelimit.Limiter
 
@@ -101,8 +102,9 @@ type Runner struct {
 	rawResultsLog      []AttackResult
 	metricsLogFilename string
 	// raw attack Results log file
-	metricsLogFile  *csv.Writer
-	percLogFilename string
+	metricsLogFile      *csv.Writer
+	percsReportFilename string
+	percLogFilename     string
 	// aggregated per second P50/95/99 percentiles of response time log
 	percLogFile *csv.Writer
 	// uniq error messages
@@ -131,6 +133,7 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		results:           make(chan AttackResult, DefaultResultsQueueCapacity),
 		OutResults:        make(chan []AttackResult, DefaultResultsQueueCapacity),
 		rawResultsLog:     make([]AttackResult, 0),
+		tickMetricsMu:     &sync.Mutex{},
 		tickMetrics:       make(map[int]*TickMetrics),
 		uniqErrors:        make(map[string]int),
 		controlled:        Controlled{},
@@ -149,6 +152,7 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		tn := time.Now().Unix()
 		r.metricsLogFilename = fmt.Sprintf(MetricsLogFile, cfg.Name, r.runId, tn)
 		r.percLogFilename = fmt.Sprintf(PercsLogFile, cfg.Name, r.runId, tn)
+		r.percsReportFilename = fmt.Sprintf(ReportGraphFile, r.Name, r.runId, tn)
 		r.metricsLogFile = csv.NewWriter(CreateFileOrReplace(r.metricsLogFilename))
 		r.percLogFile = csv.NewWriter(CreateFileOrReplace(r.percLogFilename))
 		_ = r.metricsLogFile.Write(ResultsCsvHeader)
@@ -198,12 +202,13 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 func (r *Runner) report() {
 	if r.Cfg.ReportOptions.PNG {
 		r.L.Infof("reporting graphs: %s", r.percLogFilename)
-		chart, err := ResponsesChart(r.Name, r.percLogFilename)
+		chart, err := PercsChart(r.percLogFilename, r.Name)
 		if err != nil {
 			r.L.Error(err)
 			return
 		}
-		RenderChart(chart, fmt.Sprintf(ReportGraphFile, r.Name, r.runId, time.Now().Unix()))
+		RenderEChart(chart, r.percsReportFilename)
+		html2png(r.percsReportFilename)
 	}
 }
 
@@ -290,34 +295,6 @@ func (r *Runner) collectResults() {
 	}()
 }
 
-// nolint
-func (r *Runner) process100Requests(res AttackResult) {
-	r.rawResultsLog = append(r.rawResultsLog, res)
-	if len(r.rawResultsLog)%100 == 0 {
-		m := NewMetrics()
-		for _, s := range r.rawResultsLog[len(r.rawResultsLog)-100:] {
-			m.add(s)
-		}
-		m.update()
-		r.L.Infof(
-			"step: %d, tick: %d, rate [%4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
-			res.AttackToken.Step,
-			res.AttackToken.Tick,
-			m.Rate,
-			res.AttackToken.TargetRPS,
-			m.Latencies.P50,
-			m.Latencies.P95,
-			m.Latencies.P99,
-			m.Requests,
-			m.successLogEntry(),
-		)
-		if r.Cfg.ReportOptions.CSV {
-			r.writePercentilesEntry(res, m)
-		}
-	}
-
-}
-
 // processTickMetrics add attack result to tick metrics, if it's last result in tick then report
 func (r *Runner) processTickMetrics(res AttackResult) {
 	// if no such tick, create new TickMetrics
@@ -334,10 +311,15 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 		if r.Cfg.ReportOptions.Stream {
 			r.OutResults <- currentTickMetrics.Samples
 		}
+		r.tickMetricsMu.Lock()
 		for _, s := range currentTickMetrics.Samples {
+			if s.DoResult.Error != "" && r.Cfg.FailOnFirstError {
+				r.CancelFunc()
+			}
 			currentTickMetrics.Metrics.add(s)
 		}
 		currentTickMetrics.Metrics.update()
+		r.tickMetricsMu.Unlock()
 		r.L.Infof(
 			"step: %d, tick: %d, rate [%4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
 			res.AttackToken.Step,
@@ -367,6 +349,8 @@ func (r *Runner) printErrors() {
 
 // maxRPS calculate max rps for test among ticks
 func (r *Runner) maxRPS() float64 {
+	r.tickMetricsMu.Lock()
+	defer r.tickMetricsMu.Unlock()
 	rates := make([]float64, 0)
 	for _, m := range r.tickMetrics {
 		rates = append(rates, m.Metrics.Rate)

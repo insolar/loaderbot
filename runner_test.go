@@ -300,7 +300,7 @@ func TestRunnerRealServiceAttack(t *testing.T) {
 		StartRPS:        100,
 		StepDurationSec: 5,
 		StepRPS:         200,
-		TestTimeSec:     30,
+		TestTimeSec:     10,
 	}, &HTTPAttackerExample{}, nil)
 	_, _ = r.Run(context.TODO())
 }
