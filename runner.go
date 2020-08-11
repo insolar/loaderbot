@@ -263,9 +263,6 @@ func (r *Runner) collectResults() {
 			case <-r.TimeoutCtx.Done():
 				r.L.Infof("total requests stored: %d", totalRequestsStored)
 				r.printErrors()
-				if r.Cfg.ReportOptions.CSV {
-					r.flushLogs()
-				}
 				close(r.OutResults)
 				return
 			case res := <-r.results:
