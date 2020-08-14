@@ -38,6 +38,9 @@ func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
 		case <-r.TimeoutCtx.Done():
 			return
 		case nextMsg := <-r.next:
+			r.firedTickMetricsMu.Lock()
+			r.firedTickMetrics[nextMsg.Tick]++
+			r.firedTickMetricsMu.Unlock()
 			requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.AttackerTimeout)*time.Second)
 
 			tStart := time.Now()
@@ -90,6 +93,9 @@ func asyncAttack(a Attack, r *Runner, wg *sync.WaitGroup) {
 		case <-r.TimeoutCtx.Done():
 			return
 		case nextMsg := <-r.next:
+			r.firedTickMetricsMu.Lock()
+			r.firedTickMetrics[nextMsg.Tick]++
+			r.firedTickMetricsMu.Unlock()
 			requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.AttackerTimeout)*time.Second)
 
 			tStart := time.Now()

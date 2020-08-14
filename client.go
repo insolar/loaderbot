@@ -141,6 +141,7 @@ func (m *ClusterClient) collectResults() {
 					"step: %d, tick: %d, rate [%4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
 					token.Step,
 					tick,
+					// TODO: fix this to fired RPS aggregation
 					currentTickMetrics.Metrics.Rate,
 					token.TargetRPS*len(m.testCfg.ClusterOptions.Nodes),
 					currentTickMetrics.Metrics.Latencies.P50,

@@ -137,20 +137,21 @@ func TestPrivateSystemRunnerIsSync(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
 		SystemMode:      PrivateSystem,
-		Attackers:       1,
-		AttackerTimeout: 1,
+		Attackers:       100,
+		AttackerTimeout: 5,
 		StartRPS:        rps,
-		StepDurationSec: 5,
-		StepRPS:         1,
-		TestTimeSec:     5,
+		StepDurationSec: 2,
+		StepRPS:         100,
+		TestTimeSec:     10,
 		ReportOptions: &ReportOptions{
 			CSV: false,
 			PNG: false,
 		},
 	}, &ControlAttackerMock{}, nil)
-	r.controlled.Sleep = 30
+	r.controlled.Sleep = 1000
 	maxRPS, _ := r.Run(context.TODO())
-	require.Less(t, int(maxRPS), rps)
+	// 100 attacker with 1 second blocked on request = 100 rps because clients are blocked
+	require.GreaterOrEqual(t, int(maxRPS), rps)
 }
 
 func TestRunnerMaxRPSPrivateSystem(t *testing.T) {
@@ -306,7 +307,7 @@ func TestRunnerRealServiceAttack(t *testing.T) {
 }
 
 func TestAllJitter(t *testing.T) {
-	t.Skip("only manual run")
+	// t.Skip("only manual run")
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner_open_world_decrease",
 		SystemMode:      OpenWorldSystem,
