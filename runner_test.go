@@ -409,3 +409,25 @@ func TestAllJitter(t *testing.T) {
 	}()
 	_, _ = r4.Run(context.TODO())
 }
+
+func TestLeak(t *testing.T) {
+	t.Skip("only manual run")
+	for i := 0; i < 10; i++ {
+		r := NewRunner(&RunnerConfig{
+			Name:            "test_runner_open_world_decrease",
+			SystemMode:      PrivateSystem,
+			Attackers:       100,
+			AttackerTimeout: 25,
+			StartRPS:        10,
+			StepDurationSec: 5,
+			StepRPS:         1,
+			TestTimeSec:     30,
+			ReportOptions: &ReportOptions{
+				CSV: true,
+				PNG: true,
+			},
+		}, &ControlAttackerMock{}, nil)
+		atomic.AddInt64(&r.controlled.Sleep, 10000)
+		_, _ = r.Run(context.Background())
+	}
+}

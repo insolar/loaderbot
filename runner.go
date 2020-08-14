@@ -183,12 +183,12 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 			go attack(attacker, r, wg)
 		}
 	}
-	wg.Wait()
 	r.handleShutdownSignal()
 	r.schedule()
 	r.collectResults()
 	<-r.TimeoutCtx.Done()
 	r.CancelFunc()
+	wg.Wait()
 	r.L.Infof("runner exited")
 	maxRPS := r.maxRPS()
 	r.L.Infof("max rps: %.2f", maxRPS)

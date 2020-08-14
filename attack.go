@@ -30,7 +30,9 @@ type Attack interface {
 
 // attack receives schedule signal and attacks target calling Do() method, returning AttackResult with timings
 func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
-	wg.Done()
+	if wg != nil {
+		defer wg.Done()
+	}
 	for {
 		select {
 		case <-r.TimeoutCtx.Done():
@@ -41,11 +43,14 @@ func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
 			tStart := time.Now()
 
 			done := make(chan DoResult)
-
 			var doResult DoResult
 
 			go func() {
-				done <- a.Do(requestCtx)
+				select {
+				case <-r.TimeoutCtx.Done():
+					return
+				case done <- a.Do(requestCtx):
+				}
 			}()
 			// either get the result from the attacker or from the timeout
 			select {
@@ -77,7 +82,9 @@ func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
 
 // asyncAttack receives schedule signal and attacks target calling Do() method asynchronously, returning AttackResult with timings
 func asyncAttack(a Attack, r *Runner, wg *sync.WaitGroup) {
-	wg.Done()
+	if wg != nil {
+		defer wg.Done()
+	}
 	for {
 		select {
 		case <-r.TimeoutCtx.Done():
@@ -88,11 +95,14 @@ func asyncAttack(a Attack, r *Runner, wg *sync.WaitGroup) {
 			tStart := time.Now()
 
 			done := make(chan DoResult)
-
 			var doResult DoResult
 
 			go func() {
-				done <- a.Do(requestCtx)
+				select {
+				case <-r.TimeoutCtx.Done():
+					return
+				case done <- a.Do(requestCtx):
+				}
 			}()
 
 			go func() {

@@ -9,7 +9,6 @@ package loaderbot
 
 import (
 	"context"
-	"sync"
 	"testing"
 	"time"
 )
@@ -20,9 +19,9 @@ func DefaultRunnerCfg() *RunnerConfig {
 		Attackers:       1,
 		AttackerTimeout: 1,
 		StartRPS:        20,
-		StepDurationSec: 5,
-		StepRPS:         5,
-		TestTimeSec:     60,
+		StepDurationSec: 2,
+		StepRPS:         1,
+		TestTimeSec:     5,
 		ReportOptions: &ReportOptions{
 			CSV: false,
 			PNG: false,
@@ -38,11 +37,7 @@ func TestAttackSuccess(t *testing.T) {
 	r.CancelFunc = cancel
 
 	// sync
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go attack(r.attackers[0], r, wg)
-	wg.Wait()
-
+	go attack(r.attackers[0], r, nil)
 	r.next <- attackToken{
 		Step: 1,
 		Tick: 1,
@@ -54,12 +49,9 @@ func TestAttackSuccess(t *testing.T) {
 	if got, want := int(res.Elapsed), int(r.controlled.Sleep); got < want {
 		t.Fatalf("got %v want >= %v", got, want)
 	}
-	// async
-	wg2 := &sync.WaitGroup{}
-	wg2.Add(1)
-	go asyncAttack(r.attackers[0], r, wg2)
-	wg2.Wait()
 
+	// async
+	go asyncAttack(r.attackers[0], r, nil)
 	r.next <- attackToken{
 		Step: 1,
 		Tick: 1,
@@ -81,11 +73,7 @@ func TestAttackTimeout(t *testing.T) {
 	r.CancelFunc = cancel
 
 	// sync
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go attack(r.attackers[0], r, wg)
-	wg.Wait()
-
+	go attack(r.attackers[0], r, nil)
 	r.next <- attackToken{
 		Step: 1,
 		Tick: 1,
@@ -96,11 +84,7 @@ func TestAttackTimeout(t *testing.T) {
 	}
 
 	// async
-	wg2 := &sync.WaitGroup{}
-	wg2.Add(1)
-	go attack(r.attackers[0], r, wg2)
-	wg2.Wait()
-
+	go attack(r.attackers[0], r, nil)
 	r.next <- attackToken{
 		Step: 1,
 		Tick: 1,
