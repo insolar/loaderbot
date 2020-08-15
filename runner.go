@@ -79,15 +79,11 @@ type Runner struct {
 	attackerPrototype Attack
 	// target RPS for step, changed every step
 	targetRPS int
-	// metrics for every fired request
-	firedTickMetricsMu *sync.Mutex
-	firedTickMetrics   map[int]int
 	// metrics for every received tick (completed requests)
 	receivedTickMetricsMu *sync.Mutex
 	receivedTickMetrics   map[int]*TickMetrics
 	// ratelimiter for keeping constant rps inside test step
 	rl ratelimit.Limiter
-
 	// TimeoutCtx test timeout ctx
 	TimeoutCtx context.Context
 	// test cancel func
@@ -136,8 +132,6 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		results:               make(chan AttackResult, DefaultResultsQueueCapacity),
 		OutResults:            make(chan []AttackResult, DefaultResultsQueueCapacity),
 		rawResultsLog:         make([]AttackResult, 0),
-		firedTickMetricsMu:    &sync.Mutex{},
-		firedTickMetrics:      make(map[int]int),
 		receivedTickMetricsMu: &sync.Mutex{},
 		receivedTickMetrics:   make(map[int]*TickMetrics),
 		uniqErrors:            make(map[string]int),
@@ -325,16 +319,11 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 		}
 		currentTickMetrics.Metrics.update()
 		r.receivedTickMetricsMu.Unlock()
-		r.firedTickMetricsMu.Lock()
-		firedRPS := r.firedTickMetrics[res.AttackToken.Tick]
-		r.firedTickMetricsMu.Unlock()
-		r.L.Infof("tick duration: %.4f", currentTickMetrics.Metrics.Duration.Seconds())
-		r.L.Infof("fired total: %d", firedRPS)
 		r.L.Infof(
 			"step: %d, tick: %d, rate [%.4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
 			res.AttackToken.Step,
 			res.AttackToken.Tick,
-			float64(firedRPS)/currentTickMetrics.Metrics.Duration.Seconds(),
+			currentTickMetrics.Metrics.Rate,
 			res.AttackToken.TargetRPS,
 			currentTickMetrics.Metrics.Latencies.P50,
 			currentTickMetrics.Metrics.Latencies.P95,
