@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	DefaultScheduleQueueCapacity = 10000
-	DefaultResultsQueueCapacity  = 10000
+	DefaultScheduleQueueCapacity = 100000
+	DefaultResultsQueueCapacity  = 100000
 	MetricsLogFile               = "requests_%s_%s_%d.csv"
 	PercsLogFile                 = "percs_%s_%s_%d.csv"
 	ReportGraphFile              = "percs_%s_%s_%d.html"
@@ -79,9 +79,12 @@ type Runner struct {
 	attackerPrototype Attack
 	// target RPS for step, changed every step
 	targetRPS int
-	// metrics for every tick
-	tickMetricsMu *sync.Mutex
-	tickMetrics   map[int]*TickMetrics
+	// metrics for every fired request
+	firedTickMetricsMu *sync.Mutex
+	firedTickMetrics   map[int]int
+	// metrics for every received tick (completed requests)
+	receivedTickMetricsMu *sync.Mutex
+	receivedTickMetrics   map[int]*TickMetrics
 	// ratelimiter for keeping constant rps inside test step
 	rl ratelimit.Limiter
 
@@ -123,22 +126,24 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 	cfg.Validate()
 	cfg.DefaultCfgValues()
 	r := &Runner{
-		Name:              cfg.Name,
-		Cfg:               cfg,
-		attackerPrototype: a,
-		targetRPS:         cfg.StartRPS,
-		next:              make(chan attackToken, DefaultScheduleQueueCapacity),
-		rl:                ratelimit.New(cfg.StartRPS),
-		attackers:         make([]Attack, 0),
-		results:           make(chan AttackResult, DefaultResultsQueueCapacity),
-		OutResults:        make(chan []AttackResult, DefaultResultsQueueCapacity),
-		rawResultsLog:     make([]AttackResult, 0),
-		tickMetricsMu:     &sync.Mutex{},
-		tickMetrics:       make(map[int]*TickMetrics),
-		uniqErrors:        make(map[string]int),
-		controlled:        Controlled{},
-		TestData:          data,
-		L:                 NewLogger(cfg).With("runner", cfg.Name),
+		Name:                  cfg.Name,
+		Cfg:                   cfg,
+		attackerPrototype:     a,
+		targetRPS:             cfg.StartRPS,
+		next:                  make(chan attackToken, DefaultScheduleQueueCapacity),
+		rl:                    ratelimit.New(cfg.StartRPS),
+		attackers:             make([]Attack, 0),
+		results:               make(chan AttackResult, DefaultResultsQueueCapacity),
+		OutResults:            make(chan []AttackResult, DefaultResultsQueueCapacity),
+		rawResultsLog:         make([]AttackResult, 0),
+		firedTickMetricsMu:    &sync.Mutex{},
+		firedTickMetrics:      make(map[int]int),
+		receivedTickMetricsMu: &sync.Mutex{},
+		receivedTickMetrics:   make(map[int]*TickMetrics),
+		uniqErrors:            make(map[string]int),
+		controlled:            Controlled{},
+		TestData:              data,
+		L:                     NewLogger(cfg).With("runner", cfg.Name),
 	}
 	for i := 0; i < cfg.Attackers; i++ {
 		a := r.attackerPrototype.Clone(r)
@@ -183,12 +188,12 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 			go attack(attacker, r, wg)
 		}
 	}
-	wg.Wait()
 	r.handleShutdownSignal()
 	r.schedule()
 	r.collectResults()
 	<-r.TimeoutCtx.Done()
 	r.CancelFunc()
+	wg.Wait()
 	r.L.Infof("runner exited")
 	maxRPS := r.maxRPS()
 	r.L.Infof("max rps: %.2f", maxRPS)
@@ -208,7 +213,7 @@ func (r *Runner) report() {
 			return
 		}
 		RenderEChart(chart, r.percsReportFilename)
-		html2png(r.percsReportFilename)
+		// html2png(r.percsReportFilename)
 	}
 }
 
@@ -244,12 +249,12 @@ func (r *Runner) schedule() {
 				if requestsFiredInTick == r.targetRPS {
 					currentTick += 1
 					requestsFiredInTick = 0
+					r.L.Infof("current active goroutines: %d", runtime.NumGoroutine())
 					if currentTick%ticksInStep == 0 {
 						r.targetRPS += r.Cfg.StepRPS
 						r.rl = ratelimit.New(r.targetRPS)
 						currentStep += 1
 						r.L.Infof("next step: step -> %d, rps -> %d", currentStep, r.targetRPS)
-						r.L.Infof("current active goroutines: %d", runtime.NumGoroutine())
 					}
 				}
 			}
@@ -298,20 +303,20 @@ func (r *Runner) collectResults() {
 // processTickMetrics add attack result to tick metrics, if it's last result in tick then report
 func (r *Runner) processTickMetrics(res AttackResult) {
 	// if no such tick, create new TickMetrics
-	if _, ok := r.tickMetrics[res.AttackToken.Tick]; !ok {
-		r.tickMetrics[res.AttackToken.Tick] = &TickMetrics{
+	if _, ok := r.receivedTickMetrics[res.AttackToken.Tick]; !ok {
+		r.receivedTickMetrics[res.AttackToken.Tick] = &TickMetrics{
 			make([]AttackResult, 0),
 			NewMetrics(),
 			false,
 		}
 	}
-	currentTickMetrics := r.tickMetrics[res.AttackToken.Tick]
+	currentTickMetrics := r.receivedTickMetrics[res.AttackToken.Tick]
 	currentTickMetrics.Samples = append(currentTickMetrics.Samples, res)
 	if len(currentTickMetrics.Samples) == res.AttackToken.TargetRPS && !currentTickMetrics.Reported {
 		if r.Cfg.ReportOptions.Stream {
 			r.OutResults <- currentTickMetrics.Samples
 		}
-		r.tickMetricsMu.Lock()
+		r.receivedTickMetricsMu.Lock()
 		for _, s := range currentTickMetrics.Samples {
 			if s.DoResult.Error != "" && r.Cfg.FailOnFirstError {
 				r.CancelFunc()
@@ -319,12 +324,17 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 			currentTickMetrics.Metrics.add(s)
 		}
 		currentTickMetrics.Metrics.update()
-		r.tickMetricsMu.Unlock()
+		r.receivedTickMetricsMu.Unlock()
+		r.firedTickMetricsMu.Lock()
+		firedRPS := r.firedTickMetrics[res.AttackToken.Tick]
+		r.firedTickMetricsMu.Unlock()
+		r.L.Infof("tick duration: %.4f", currentTickMetrics.Metrics.Duration.Seconds())
+		r.L.Infof("fired total: %d", firedRPS)
 		r.L.Infof(
-			"step: %d, tick: %d, rate [%4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
+			"step: %d, tick: %d, rate [%.4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
 			res.AttackToken.Step,
 			res.AttackToken.Tick,
-			currentTickMetrics.Metrics.Rate,
+			float64(firedRPS)/currentTickMetrics.Metrics.Duration.Seconds(),
 			res.AttackToken.TargetRPS,
 			currentTickMetrics.Metrics.Latencies.P50,
 			currentTickMetrics.Metrics.Latencies.P95,
@@ -349,10 +359,10 @@ func (r *Runner) printErrors() {
 
 // maxRPS calculate max rps for test among ticks
 func (r *Runner) maxRPS() float64 {
-	r.tickMetricsMu.Lock()
-	defer r.tickMetricsMu.Unlock()
+	r.receivedTickMetricsMu.Lock()
+	defer r.receivedTickMetricsMu.Unlock()
 	rates := make([]float64, 0)
-	for _, m := range r.tickMetrics {
+	for _, m := range r.receivedTickMetrics {
 		rates = append(rates, m.Metrics.Rate)
 	}
 	return MaxRPS(rates)
