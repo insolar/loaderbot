@@ -416,13 +416,13 @@ func TestLeak(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		r := NewRunner(&RunnerConfig{
 			Name:            "test_runner_open_world_decrease",
-			SystemMode:      PrivateSystem,
+			SystemMode:      OpenWorldSystem,
 			Attackers:       100,
 			AttackerTimeout: 25,
 			StartRPS:        10,
 			StepDurationSec: 5,
-			StepRPS:         1,
-			TestTimeSec:     30,
+			StepRPS:         10,
+			TestTimeSec:     120,
 			ReportOptions: &ReportOptions{
 				CSV: true,
 				PNG: true,

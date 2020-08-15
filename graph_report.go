@@ -190,7 +190,7 @@ func ReportScaling(inputCsv, outHtml string) {
 		log.Fatal("Couldn't read and parse requests", err)
 	}
 	RenderEChart(chartData, outHtml)
-	html2png(outHtml)
+	// html2png(outHtml)
 }
 
 // draws max label for every line

@@ -213,7 +213,7 @@ func (r *Runner) report() {
 			return
 		}
 		RenderEChart(chart, r.percsReportFilename)
-		html2png(r.percsReportFilename)
+		// html2png(r.percsReportFilename)
 	}
 }
 
@@ -249,12 +249,12 @@ func (r *Runner) schedule() {
 				if requestsFiredInTick == r.targetRPS {
 					currentTick += 1
 					requestsFiredInTick = 0
+					r.L.Infof("current active goroutines: %d", runtime.NumGoroutine())
 					if currentTick%ticksInStep == 0 {
 						r.targetRPS += r.Cfg.StepRPS
 						r.rl = ratelimit.New(r.targetRPS)
 						currentStep += 1
 						r.L.Infof("next step: step -> %d, rps -> %d", currentStep, r.targetRPS)
-						r.L.Infof("current active goroutines: %d", runtime.NumGoroutine())
 					}
 				}
 			}
