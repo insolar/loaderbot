@@ -23,11 +23,10 @@ import (
 )
 
 const (
-	DefaultScheduleQueueCapacity = 100000
-	DefaultResultsQueueCapacity  = 100000
-	MetricsLogFile               = "requests_%s_%s_%d.csv"
-	PercsLogFile                 = "percs_%s_%s_%d.csv"
-	ReportGraphFile              = "percs_%s_%s_%d.html"
+	DefaultResultsQueueCapacity = 100000
+	MetricsLogFile              = "requests_%s_%s_%d.csv"
+	PercsLogFile                = "percs_%s_%s_%d.csv"
+	ReportGraphFile             = "percs_%s_%s_%d.html"
 )
 
 var (
@@ -126,7 +125,7 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		Cfg:                   cfg,
 		attackerPrototype:     a,
 		targetRPS:             cfg.StartRPS,
-		next:                  make(chan attackToken, DefaultScheduleQueueCapacity),
+		next:                  make(chan attackToken),
 		rl:                    ratelimit.New(cfg.StartRPS),
 		attackers:             make([]Attack, 0),
 		results:               make(chan AttackResult, DefaultResultsQueueCapacity),
