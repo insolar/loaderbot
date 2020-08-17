@@ -432,3 +432,23 @@ func TestLeak(t *testing.T) {
 		_, _ = r.Run(context.Background())
 	}
 }
+
+func TestReportMetrics(t *testing.T) {
+	r := NewRunner(&RunnerConfig{
+		Name:            "test_runner",
+		SystemMode:      PrivateSystem,
+		Attackers:       10,
+		AttackerTimeout: 1,
+		StartRPS:        8,
+		StepDurationSec: 5,
+		StepRPS:         2,
+		TestTimeSec:     10,
+		ReportOptions: &ReportOptions{
+			CSV: true,
+			PNG: true,
+		},
+	}, &ControlAttackerMock{}, nil)
+	r.controlled.Sleep = 500
+	_, err := r.Run(context.TODO())
+	require.NoError(t, err)
+}

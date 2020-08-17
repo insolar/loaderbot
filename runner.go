@@ -9,16 +9,13 @@ package loaderbot
 
 import (
 	"context"
-	"encoding/csv"
 	"fmt"
 	"log"
 	"runtime"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/google/uuid"
 	"go.uber.org/ratelimit"
 )
 
@@ -70,8 +67,7 @@ func (a attackToken) String() string {
 // Runner provides test context for attacking target with constant amount of runners with a schedule
 type Runner struct {
 	// Name of a runner
-	Name  string
-	runId string
+	Name string
 	// Cfg runner config
 	Cfg *RunnerConfig
 	// prototype from which all attackers cloned
@@ -96,19 +92,12 @@ type Runner struct {
 	results chan AttackResult
 	// outer Results chan, when called as a service, sends Results in batches
 	OutResults chan []AttackResult
-	// raw Results log
-	rawResultsLog      []AttackResult
-	metricsLogFilename string
-	// raw attack Results log file
-	metricsLogFile      *csv.Writer
-	percsReportFilename string
-	percLogFilename     string
-	// aggregated per second P50/95/99 percentiles of response time log
-	percLogFile *csv.Writer
 	// uniq error messages
 	uniqErrors map[string]int
 	// Failed means there some errors in test
 	Failed int64
+	// Report data
+	Report *Report
 	// data used to control attackers in test
 	controlled Controlled
 	// TestData data shared between attackers during test
@@ -130,7 +119,6 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		attackers:             make([]Attack, 0),
 		results:               make(chan AttackResult, DefaultResultsQueueCapacity),
 		OutResults:            make(chan []AttackResult, DefaultResultsQueueCapacity),
-		rawResultsLog:         make([]AttackResult, 0),
 		receivedTickMetricsMu: &sync.Mutex{},
 		receivedTickMetrics:   make(map[int]*TickMetrics),
 		uniqErrors:            make(map[string]int),
@@ -146,15 +134,7 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		r.attackers = append(r.attackers, a)
 	}
 	if cfg.ReportOptions.CSV {
-		r.runId = uuid.New().String()
-		tn := time.Now().Unix()
-		r.metricsLogFilename = fmt.Sprintf(MetricsLogFile, cfg.Name, r.runId, tn)
-		r.percLogFilename = fmt.Sprintf(PercsLogFile, cfg.Name, r.runId, tn)
-		r.percsReportFilename = fmt.Sprintf(ReportGraphFile, r.Name, r.runId, tn)
-		r.metricsLogFile = csv.NewWriter(CreateFileOrReplace(r.metricsLogFilename))
-		r.percLogFile = csv.NewWriter(CreateFileOrReplace(r.percLogFilename))
-		_ = r.metricsLogFile.Write(ResultsCsvHeader)
-		_ = r.percLogFile.Write(PercsCsvHeader)
+		r.Report = NewReport(r.Cfg)
 	}
 	return r
 }
@@ -191,28 +171,10 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 	maxRPS := r.maxRPS()
 	r.L.Infof("max rps: %.2f", maxRPS)
 	if r.Cfg.ReportOptions.CSV {
-		r.flushLogs()
+		r.Report.flushLogs()
+		r.Report.plot()
 	}
-	r.report()
 	return maxRPS, nil
-}
-
-func (r *Runner) report() {
-	if r.Cfg.ReportOptions.PNG {
-		r.L.Infof("reporting graphs: %s", r.percLogFilename)
-		chart, err := PercsChart(r.percLogFilename, r.Name)
-		if err != nil {
-			r.L.Error(err)
-			return
-		}
-		RenderEChart(chart, r.percsReportFilename)
-		// html2png(r.percsReportFilename)
-	}
-}
-
-func (r *Runner) flushLogs() {
-	r.percLogFile.Flush()
-	r.metricsLogFile.Flush()
 }
 
 // schedule creates schedule plan for a test
@@ -255,7 +217,7 @@ func (r *Runner) schedule() {
 	}()
 }
 
-// collectResults collects attackers Results and writes them to one of report options
+// collectResults collects attackers Results and writes them to one of plot options
 func (r *Runner) collectResults() {
 	go func() {
 		var (
@@ -283,17 +245,15 @@ func (r *Runner) collectResults() {
 				}
 
 				if r.Cfg.ReportOptions.CSV {
-					r.writeResultEntry(res, errorForReport)
+					r.Report.writeResultEntry(res, errorForReport)
 				}
-
-				r.rawResultsLog = append(r.rawResultsLog, res)
 				r.processTickMetrics(res)
 			}
 		}
 	}()
 }
 
-// processTickMetrics add attack result to tick metrics, if it's last result in tick then report
+// processTickMetrics add attack result to tick metrics, if it's last result in tick then plot
 func (r *Runner) processTickMetrics(res AttackResult) {
 	// if no such tick, create new TickMetrics
 	if _, ok := r.receivedTickMetrics[res.AttackToken.Tick]; !ok {
@@ -331,7 +291,7 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 			currentTickMetrics.Metrics.successLogEntry(),
 		)
 		if r.Cfg.ReportOptions.CSV {
-			r.writePercentilesEntry(res, currentTickMetrics.Metrics)
+			r.Report.writePercentilesEntry(res, currentTickMetrics.Metrics)
 		}
 		currentTickMetrics.Reported = true
 	}
@@ -354,26 +314,4 @@ func (r *Runner) maxRPS() float64 {
 		rates = append(rates, m.Metrics.Rate)
 	}
 	return MaxRPS(rates)
-}
-
-func (r *Runner) writeResultEntry(res AttackResult, errorMsg string) {
-	_ = r.metricsLogFile.Write([]string{
-		res.DoResult.RequestLabel,
-		strconv.Itoa(int(res.Begin.UnixNano())),
-		strconv.Itoa(int(res.End.UnixNano())),
-		res.Elapsed.String(),
-		string(res.DoResult.StatusCode),
-		errorMsg,
-	})
-}
-
-func (r *Runner) writePercentilesEntry(res AttackResult, tickMetrics *Metrics) {
-	_ = r.percLogFile.Write([]string{
-		res.DoResult.RequestLabel,
-		strconv.Itoa(res.AttackToken.Tick),
-		strconv.Itoa(int(tickMetrics.Rate)),
-		strconv.Itoa(int(tickMetrics.Latencies.P50.Milliseconds())),
-		strconv.Itoa(int(tickMetrics.Latencies.P95.Milliseconds())),
-		strconv.Itoa(int(tickMetrics.Latencies.P99.Milliseconds())),
-	})
 }

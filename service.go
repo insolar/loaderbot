@@ -7,12 +7,32 @@ import (
 	"encoding/json"
 	"log"
 	"net"
+	"sync"
 	"sync/atomic"
 
 	"google.golang.org/grpc"
 )
 
+// TestPolicy only one runner is allowed per node
+type TestPolicy struct {
+	*sync.Mutex
+	busy bool
+}
+
+func (m *TestPolicy) isBusy() bool {
+	m.Lock()
+	defer m.Unlock()
+	return m.busy
+}
+
+func (m *TestPolicy) setBusy(b bool) {
+	m.Lock()
+	defer m.Unlock()
+	m.busy = b
+}
+
 type server struct {
+	policy           *TestPolicy
 	runnerCancelFunc context.CancelFunc
 	UnimplementedLoaderServer
 }
@@ -30,24 +50,38 @@ func (r *Runner) streamResults(srv Loader_RunServer) {
 		}
 		// send last tick batch and shutdown, other nodes will be cancelled by client
 		if r.Cfg.FailOnFirstError && atomic.LoadInt64(&r.Failed) == 1 {
+			r.L.Infof("error occurred, exiting")
 			r.CancelFunc()
 		}
 	}
 }
 
+func (s *server) Status(_ context.Context, _ *StatusRequest) (*StatusResponse, error) {
+	return &StatusResponse{
+		Busy: s.policy.isBusy(),
+	}, nil
+}
+
 // Run starts Runner and stream Results back to cluster client
 func (s *server) Run(req *RunConfigRequest, srv Loader_RunServer) error {
+	if s.policy.isBusy() {
+		return nil
+	}
+	s.policy.setBusy(true)
 	cfg := UnmarshalConfigGob(req.Config)
 
 	r := NewRunner(&cfg, &HTTPAttackerExample{}, nil)
 	cfgJson, _ := json.MarshalIndent(cfg, "", "    ")
 	r.L.Infof("running task: %s", cfgJson)
+	r.L.Infof("busy: %s", s.policy.isBusy())
 	var ctx context.Context
 	ctx, s.runnerCancelFunc = context.WithCancel(context.Background())
 	go func() {
 		_, _ = r.Run(ctx)
 	}()
 	r.streamResults(srv)
+	r.L.Infof("setting policy here")
+	s.policy.setBusy(false)
 	return nil
 }
 
@@ -64,7 +98,12 @@ func RunService(addr string) *grpc.Server {
 		log.Fatal(err)
 	}
 	s := grpc.NewServer()
-	RegisterLoaderServer(s, &server{})
+	RegisterLoaderServer(s, &server{
+		policy: &TestPolicy{
+			Mutex: &sync.Mutex{},
+			busy:  false,
+		},
+	})
 	log.Printf("running node on: %s", addr)
 	go func() {
 		if err := s.Serve(lis); err != nil {

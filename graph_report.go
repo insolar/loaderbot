@@ -61,7 +61,7 @@ func parseScalingData(path string) (map[string]*ChartLine, error) {
 	}
 	for _, v := range requests {
 		if len(v.XValues) == 0 || len(v.YValues) == 0 {
-			return nil, errors.New("empty csv, nothing to report")
+			return nil, errors.New("empty csv, nothing to plot")
 		}
 	}
 	return requests, nil
@@ -130,7 +130,7 @@ func parsePercsData(path string) (map[string]*ChartLine, error) {
 	}
 	for _, v := range percs {
 		if len(v.XValues) == 0 || len(v.YValues) == 0 {
-			return nil, errors.New("empty csv, nothing to report")
+			return nil, errors.New("empty csv, nothing to plot")
 		}
 	}
 	return percs, nil

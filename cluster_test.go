@@ -12,6 +12,10 @@ func TestClusterClient(t *testing.T) {
 	defer s1.GracefulStop()
 	s2 := RunService("localhost:50052")
 	defer s2.GracefulStop()
+	s3 := RunService("localhost:50053")
+	defer s3.GracefulStop()
+	s4 := RunService("localhost:50054")
+	defer s4.GracefulStop()
 	time.Sleep(1 * time.Second)
 	c := NewClusterClient(&RunnerConfig{
 		TargetUrl:       "https://clients5.google.com/pagead/drt/dn/",
@@ -19,17 +23,19 @@ func TestClusterClient(t *testing.T) {
 		SystemMode:      OpenWorldSystem,
 		Attackers:       1,
 		AttackerTimeout: 1,
-		StartRPS:        10,
-		StepDurationSec: 2,
+		StartRPS:        100,
+		StepDurationSec: 5,
 		StepRPS:         20,
-		TestTimeSec:     20,
+		TestTimeSec:     10,
 		LogEncoding:     "console",
 		LogLevel:        "info",
 		ReportOptions: &ReportOptions{
+			CSV:    true,
+			PNG:    true,
 			Stream: true,
 		},
 		ClusterOptions: &ClusterOptions{
-			Nodes: []string{"localhost:50051", "localhost:50052"},
+			Nodes: []string{"localhost:50051", "localhost:50052", "localhost:50053", "localhost:50054"},
 		},
 	})
 	c.Run()
@@ -37,9 +43,9 @@ func TestClusterClient(t *testing.T) {
 }
 
 func TestClusterShutdownOnError(t *testing.T) {
-	s1 := RunService("localhost:50053")
+	s1 := RunService("localhost:50055")
 	defer s1.GracefulStop()
-	s2 := RunService("localhost:50054")
+	s2 := RunService("localhost:50056")
 	defer s2.GracefulStop()
 	time.Sleep(1 * time.Second)
 	c := NewClusterClient(&RunnerConfig{
@@ -59,9 +65,41 @@ func TestClusterShutdownOnError(t *testing.T) {
 			Stream: true,
 		},
 		ClusterOptions: &ClusterOptions{
-			Nodes: []string{"localhost:50053", "localhost:50054"},
+			Nodes: []string{"localhost:50055", "localhost:50056"},
 		},
 	})
 	c.Run()
 	require.Equal(t, true, c.failed)
+}
+
+func TestClusterNodeIsBusy(t *testing.T) {
+	s1 := RunService("localhost:50051")
+	defer s1.GracefulStop()
+	time.Sleep(1 * time.Second)
+
+	cfg := &RunnerConfig{
+		TargetUrl:       "https://clients5.google.com/pagead/drt/dn/",
+		Name:            "test_runner",
+		SystemMode:      OpenWorldSystem,
+		Attackers:       1,
+		AttackerTimeout: 1,
+		StartRPS:        100,
+		StepDurationSec: 5,
+		StepRPS:         20,
+		TestTimeSec:     1,
+		LogEncoding:     "console",
+		LogLevel:        "info",
+		ReportOptions: &ReportOptions{
+			CSV:    true,
+			PNG:    true,
+			Stream: true,
+		},
+		ClusterOptions: &ClusterOptions{
+			Nodes: []string{"localhost:50051"},
+		},
+	}
+	c := NewClusterClient(cfg)
+	go c.Run()
+	c2 := NewClusterClient(cfg)
+	require.True(t, c2.failed)
 }
