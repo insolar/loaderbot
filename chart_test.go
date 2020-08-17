@@ -18,6 +18,10 @@ func TestReportScaling(t *testing.T) {
 	ReportScaling("example_csv_data/scaling.csv", "scaling.html")
 }
 
+func TestReportScalingSlack(t *testing.T) {
+	ReportScalingSlack("example_csv_data/scaling.csv", "scaling.png")
+}
+
 func TestRenderPercs(t *testing.T) {
 	data, err := PercsChart("example_csv_data/percs.csv", "Response times")
 	if err != nil {

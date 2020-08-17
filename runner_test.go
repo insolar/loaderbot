@@ -174,7 +174,7 @@ func TestRunnerMaxRPSPrivateSystem(t *testing.T) {
 	maxRPS, err := r.Run(context.TODO())
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, int(maxRPS), 69)
-	require.Less(t, int(maxRPS), 72)
+	require.Less(t, int(maxRPS), 74)
 }
 
 func TestRunnerMaxRPSOpenWorldSystem(t *testing.T) {

@@ -23,3 +23,7 @@ protoc_gen: ## generate protobuf
 .PHONY: test
 test:  ## run all tests
 	go test -v ./... -race -count $(TEST_COUNT) $(TEST_ARGS)
+
+.PHONY: clean
+clean:  ## remove all report and debug data
+	rm -rf *.csv *.png *.html *.out
