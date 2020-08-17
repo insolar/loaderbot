@@ -59,13 +59,13 @@ func (m *NodeClient) Close() {
 func (m *NodeClient) receive(_ context.Context, cluster *ClusterClient) {
 	for {
 		res, err := m.stream.Recv()
-		if err != nil {
-			atomic.AddInt32(&cluster.activeClients, -1)
-			cluster.L.Error(err)
-		}
 		if err == io.EOF || res == nil {
 			atomic.AddInt32(&cluster.activeClients, -1)
 			return
+		}
+		if err != nil {
+			atomic.AddInt32(&cluster.activeClients, -1)
+			cluster.L.Error(err)
 		}
 		b := bytes.NewBuffer(res.ResultsChunk)
 		dec := gob.NewDecoder(b)

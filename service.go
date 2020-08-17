@@ -80,7 +80,6 @@ func (s *server) Run(req *RunConfigRequest, srv Loader_RunServer) error {
 		_, _ = r.Run(ctx)
 	}()
 	r.streamResults(srv)
-	r.L.Infof("setting policy here")
 	s.policy.setBusy(false)
 	return nil
 }
