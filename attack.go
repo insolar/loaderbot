@@ -48,6 +48,7 @@ func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
 			go func() {
 				select {
 				case <-r.TimeoutCtx.Done():
+					requestCtxCancel()
 					return
 				case done <- a.Do(requestCtx):
 				}
@@ -100,6 +101,7 @@ func asyncAttack(a Attack, r *Runner, wg *sync.WaitGroup) {
 			go func() {
 				select {
 				case <-r.TimeoutCtx.Done():
+					requestCtxCancel()
 					return
 				case done <- a.Do(requestCtx):
 				}
