@@ -37,7 +37,7 @@ func startTrace(f io.Writer) {
 }
 
 // nolint
-func pprofTrace(secs int) {
+func pprofTrace(prefix string, secs int) {
 	go func() {
 		m := http.NewServeMux()
 		pprofHandlers(m)
@@ -45,7 +45,7 @@ func pprofTrace(secs int) {
 			log.Fatal(err)
 		}
 	}()
-	f, err := os.Create(fmt.Sprintf("trace-%s.out", uuid.New().String()))
+	f, err := os.Create(fmt.Sprintf("trace-%s-%s.out", prefix, uuid.New().String()))
 	if err != nil {
 		log.Fatal(err)
 	}

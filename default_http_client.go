@@ -26,8 +26,7 @@ func NewLoggingHTTPClient(debug bool, transportTimeout int) *http.Client {
 			http.DefaultTransport,
 		}
 	} else {
-		transport = http.DefaultTransport.(*http.Transport).Clone()
-		// transport.(*http.Transport).MaxConnsPerHost = 100
+		transport = http.DefaultTransport
 	}
 	cookieJar, _ := cookiejar.New(nil)
 	return &http.Client{

@@ -171,7 +171,8 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 	}
 	r.TimeoutCtx, r.CancelFunc = context.WithTimeout(serverCtx, time.Duration(r.Cfg.TestTimeSec)*time.Second)
 	wg := &sync.WaitGroup{}
-	wg.Add(len(r.attackers))
+	// all attackers + collect
+	wg.Add(len(r.attackers) + 1)
 	for atkIdx, attacker := range r.attackers {
 		switch r.Cfg.SystemMode {
 		case OpenWorldSystem:
@@ -183,7 +184,7 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 	}
 	r.handleShutdownSignal()
 	r.schedule()
-	r.collectResults()
+	r.collectResults(wg)
 	<-r.TimeoutCtx.Done()
 	r.CancelFunc()
 	wg.Wait()
@@ -256,7 +257,10 @@ func (r *Runner) schedule() {
 }
 
 // collectResults collects attackers Results and writes them to one of report options
-func (r *Runner) collectResults() {
+func (r *Runner) collectResults(wg *sync.WaitGroup) {
+	if wg != nil {
+		defer wg.Done()
+	}
 	go func() {
 		var (
 			totalRequestsStored = 0
