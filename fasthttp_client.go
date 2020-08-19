@@ -8,7 +8,9 @@
 package loaderbot
 
 import (
+	"encoding/json"
 	"log"
+	"reflect"
 
 	"github.com/valyala/fasthttp"
 )
@@ -26,7 +28,8 @@ func NewLoggingFastHTTPClient(debug bool) *FastHTTPClient {
 	}
 }
 
-func (m *FastHTTPClient) Do(req *fasthttp.Request) (int, []byte, error) {
+func (m *FastHTTPClient) Do(req *fasthttp.Request, respStruct interface{}) (int, interface{}, error) {
+	var respStruct2 interface{}
 	if m.dump {
 		log.Printf(RequestHeader, req.String())
 	}
@@ -36,8 +39,21 @@ func (m *FastHTTPClient) Do(req *fasthttp.Request) (int, []byte, error) {
 	if err := m.Client.Do(req, resp); err != nil {
 		return -1, nil, err
 	}
+	if respStruct != nil {
+		respStruct2 = UnmarshalAny(resp.Body(), respStruct)
+	}
 	if m.dump {
 		log.Printf(ResponseHeader, resp.String())
 	}
-	return resp.StatusCode(), resp.Body(), nil
+	return resp.StatusCode(), respStruct2, nil
+}
+
+func UnmarshalAny(d []byte, typ interface{}) interface{} {
+	t := reflect.TypeOf(typ).Elem()
+	v := reflect.New(t)
+	newP := v.Interface()
+	if err := json.Unmarshal(d, newP); err != nil {
+		log.Fatal(err)
+	}
+	return newP
 }
