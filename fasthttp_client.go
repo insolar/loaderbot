@@ -36,7 +36,7 @@ func (m *FastHTTPClient) Do(req *fasthttp.Request, respStruct interface{}) (int,
 	resp := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(resp)
-	if err := m.Client.Do(req, resp); err != nil {
+	if err := m.Client.DoRedirects(req, resp, 5); err != nil {
 		return -1, nil, err
 	}
 	if respStruct != nil {
