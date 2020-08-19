@@ -214,7 +214,25 @@ func TestLeak(t *testing.T) {
 	}
 }
 
-func TestRunnerNginxStaticAttack(t *testing.T) {
+func TestRunnerNginxStaticAttackFastHTTP(t *testing.T) {
+	t.Skip("only manual run")
+	go pprofTrace(40)
+	// go tool trace -http=':8081' ${FILENAME}
+	r := NewRunner(&RunnerConfig{
+		TargetUrl:       "http://localhost:8080/static.html",
+		Name:            "nginx_test",
+		SystemMode:      OpenWorldSystem,
+		Attackers:       3000,
+		AttackerTimeout: 5,
+		StartRPS:        1000,
+		StepDurationSec: 5,
+		StepRPS:         100,
+		TestTimeSec:     40,
+	}, &FastHTTPAttackerExample{}, nil)
+	_, _ = r.Run(context.TODO())
+}
+
+func TestRunnerNginxStaticAttackDefaultHTTP(t *testing.T) {
 	t.Skip("only manual run")
 	go pprofTrace(40)
 	// go tool trace -http=':8081' ${FILENAME}
@@ -222,11 +240,11 @@ func TestRunnerNginxStaticAttack(t *testing.T) {
 		TargetUrl:       "http://localhost:8080/static.html",
 		Name:            "nginx_test",
 		SystemMode:      PrivateSystem,
-		Attackers:       1000,
+		Attackers:       3000,
 		AttackerTimeout: 5,
-		StartRPS:        200,
+		StartRPS:        1000,
 		StepDurationSec: 5,
-		StepRPS:         50,
+		StepRPS:         100,
 		TestTimeSec:     40,
 	}, &HTTPAttackerExample{}, nil)
 	_, _ = r.Run(context.TODO())
