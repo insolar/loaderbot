@@ -27,7 +27,10 @@ func (a *HTTPAttackerExample) Setup(c RunnerConfig) error {
 }
 
 func (a *HTTPAttackerExample) Do(_ context.Context) DoResult {
-	_, err := a.client.Get(a.Cfg.TargetUrl)
+	res, err := a.client.Get(a.Cfg.TargetUrl)
+	if res != nil {
+		defer res.Body.Close()
+	}
 	if err != nil {
 		return DoResult{
 			RequestLabel: a.Name,
