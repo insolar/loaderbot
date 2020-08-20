@@ -30,7 +30,15 @@ func (a *FastHTTPAttackerExample) Setup(c RunnerConfig) error {
 func (a *FastHTTPAttackerExample) Do(_ context.Context) DoResult {
 	req := fasthttp.AcquireRequest()
 	req.SetRequestURI(a.Cfg.TargetUrl)
-	_, _, err := a.client.Do(req, nil)
+	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseRequest(req)
+	defer fasthttp.ReleaseResponse(resp)
+	err := a.client.Do(req, resp)
+	if resp.StatusCode() >= 400 {
+		return DoResult{
+			Error: "request failed",
+		}
+	}
 	if err != nil {
 		return DoResult{
 			Error: err.Error(),
