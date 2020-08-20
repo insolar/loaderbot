@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"log"
 	"reflect"
+	"time"
 
 	"github.com/valyala/fasthttp"
 )
@@ -24,36 +25,27 @@ type FastHTTPClient struct {
 func NewLoggingFastHTTPClient(debug bool) *FastHTTPClient {
 	return &FastHTTPClient{
 		debug,
-		fasthttp.Client{},
+		fasthttp.Client{
+			MaxConnWaitTimeout: 2 * time.Second,
+		},
 	}
 }
 
-func (m *FastHTTPClient) Do(req *fasthttp.Request, respStruct interface{}) (int, interface{}, error) {
-	var respStruct2 interface{}
+func (m *FastHTTPClient) Do(req *fasthttp.Request, resp *fasthttp.Response) error {
 	if m.dump {
 		log.Printf(RequestHeader, req.String())
 	}
-	resp := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseRequest(req)
-	defer fasthttp.ReleaseResponse(resp)
 	if err := m.Client.DoRedirects(req, resp, 5); err != nil {
-		return -1, nil, err
-	}
-	if respStruct != nil {
-		var err error
-		respStruct2, err = UnmarshalAny(resp.Body(), respStruct)
-		if err != nil {
-			return -1, nil, err
-		}
+		return err
 	}
 	if m.dump {
 		log.Printf(ResponseHeader, resp.String())
 	}
-	return resp.StatusCode(), respStruct2, nil
+	return nil
 }
 
-func UnmarshalAny(d []byte, typ interface{}) (interface{}, error) {
-	if typ == nil {
+func UnmarshalAnyJson(d []byte, typ interface{}) (interface{}, error) {
+	if typ == nil || d == nil {
 		return nil, nil
 	}
 	t := reflect.TypeOf(typ).Elem()
