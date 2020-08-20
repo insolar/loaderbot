@@ -30,17 +30,18 @@ func NewLoggingFastHTTPClient(debug bool) *FastHTTPClient {
 
 func (m *FastHTTPClient) Do(req *fasthttp.Request, respStruct interface{}) (int, interface{}, error) {
 	var respStruct2 interface{}
+	var err error
 	if m.dump {
 		log.Printf(RequestHeader, req.String())
 	}
 	resp := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(resp)
-	if err := m.Client.DoRedirects(req, resp, 5); err != nil {
+	if err = m.Client.DoRedirects(req, resp, 5); err != nil {
 		return -1, nil, err
 	}
 	if respStruct != nil {
-		respStruct2 = UnmarshalAny(resp.Body(), respStruct)
+		respStruct2, err = UnmarshalAny(resp.Body(), respStruct)
 	}
 	if m.dump {
 		log.Printf(ResponseHeader, resp.String())
@@ -48,12 +49,12 @@ func (m *FastHTTPClient) Do(req *fasthttp.Request, respStruct interface{}) (int,
 	return resp.StatusCode(), respStruct2, nil
 }
 
-func UnmarshalAny(d []byte, typ interface{}) interface{} {
+func UnmarshalAny(d []byte, typ interface{}) (interface{}, error) {
 	t := reflect.TypeOf(typ).Elem()
 	v := reflect.New(t)
 	newP := v.Interface()
 	if err := json.Unmarshal(d, newP); err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	return newP
+	return newP, nil
 }
