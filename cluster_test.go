@@ -100,6 +100,7 @@ func TestCommonClusterNodeIsBusy(t *testing.T) {
 	}
 	c := NewClusterClient(cfg)
 	go c.Run()
+	time.Sleep(1 * time.Second)
 	c2 := NewClusterClient(cfg)
 	require.True(t, c2.failed)
 }
