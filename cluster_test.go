@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestClusterClient(t *testing.T) {
+func TestCommonClusterClient(t *testing.T) {
 	s1 := RunService("localhost:50051")
 	defer s1.GracefulStop()
 	s2 := RunService("localhost:50052")
@@ -42,7 +42,7 @@ func TestClusterClient(t *testing.T) {
 	require.Equal(t, false, c.failed)
 }
 
-func TestClusterShutdownOnError(t *testing.T) {
+func TestCommonClusterShutdownOnError(t *testing.T) {
 	s1 := RunService("localhost:50055")
 	defer s1.GracefulStop()
 	s2 := RunService("localhost:50056")
@@ -72,7 +72,7 @@ func TestClusterShutdownOnError(t *testing.T) {
 	require.Equal(t, true, c.failed)
 }
 
-func TestClusterNodeIsBusy(t *testing.T) {
+func TestCommonClusterNodeIsBusy(t *testing.T) {
 	s1 := RunService("localhost:50051")
 	defer s1.GracefulStop()
 	time.Sleep(1 * time.Second)

@@ -24,7 +24,6 @@ var (
 
 func (r *Runner) handleShutdownSignal() {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
 	go func() {
 		select {
 		case <-r.TimeoutCtx.Done():

@@ -150,24 +150,20 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 		serverCtx = context.Background()
 	}
 	r.TimeoutCtx, r.CancelFunc = context.WithTimeout(serverCtx, time.Duration(r.Cfg.TestTimeSec)*time.Second)
-	wg := &sync.WaitGroup{}
-	// all attackers + collect
-	wg.Add(len(r.attackers) + 1)
 	for atkIdx, attacker := range r.attackers {
 		switch r.Cfg.SystemMode {
 		case OpenWorldSystem:
-			go asyncAttack(attacker, r, wg)
+			go asyncAttack(attacker, r)
 		case PrivateSystem:
 			r.L.Debugf("starting attacker: %d", atkIdx)
-			go attack(attacker, r, wg)
+			go attack(attacker, r)
 		}
 	}
 	r.handleShutdownSignal()
 	r.schedule()
-	r.collectResults(wg)
+	r.collectResults()
 	<-r.TimeoutCtx.Done()
 	r.CancelFunc()
-	wg.Wait()
 	r.L.Infof("runner exited")
 	maxRPS := r.maxRPS()
 	r.L.Infof("max rps: %.2f", maxRPS)
@@ -192,6 +188,7 @@ func (r *Runner) schedule() {
 			select {
 			case <-r.TimeoutCtx.Done():
 				r.L.Infof("total requests fired: %d", totalRequestsFired)
+				close(r.next)
 				return
 			default:
 				r.rl.Take()
@@ -219,10 +216,7 @@ func (r *Runner) schedule() {
 }
 
 // collectResults collects attackers Results and writes them to one of report options
-func (r *Runner) collectResults(wg *sync.WaitGroup) {
-	if wg != nil {
-		defer wg.Done()
-	}
+func (r *Runner) collectResults() {
 	go func() {
 		var (
 			totalRequestsStored = 0
@@ -260,6 +254,8 @@ func (r *Runner) collectResults(wg *sync.WaitGroup) {
 // processTickMetrics add attack result to tick metrics, if it's last result in tick then report
 func (r *Runner) processTickMetrics(res AttackResult) {
 	// if no such tick, create new TickMetrics
+	r.receivedTickMetricsMu.Lock()
+	defer r.receivedTickMetricsMu.Unlock()
 	if _, ok := r.receivedTickMetrics[res.AttackToken.Tick]; !ok {
 		r.receivedTickMetrics[res.AttackToken.Tick] = &TickMetrics{
 			make([]AttackResult, 0),
@@ -273,7 +269,6 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 		if r.Cfg.ReportOptions.Stream {
 			r.OutResults <- currentTickMetrics.Samples
 		}
-		r.receivedTickMetricsMu.Lock()
 		for _, s := range currentTickMetrics.Samples {
 			if s.DoResult.Error != "" && r.Cfg.FailOnFirstError {
 				r.CancelFunc()
@@ -281,7 +276,6 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 			currentTickMetrics.Metrics.add(s)
 		}
 		currentTickMetrics.Metrics.update()
-		r.receivedTickMetricsMu.Unlock()
 		r.L.Infof(
 			"step: %d, tick: %d, rate [%.4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
 			res.AttackToken.Step,

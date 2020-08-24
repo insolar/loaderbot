@@ -50,8 +50,7 @@ type MsgStruct struct {
 	Message string
 }
 
-func TestFastHttpMarshal(t *testing.T) {
-	t.Skip("only manual run")
+func TestManualFastHttpMarshal(t *testing.T) {
 	target := runTestServer()
 	c := NewLoggingFastHTTPClient(true)
 
@@ -68,8 +67,7 @@ func TestFastHttpMarshal(t *testing.T) {
 	require.Equal(t, &MsgStruct{Message: "pong"}, respBody)
 }
 
-func TestFastHttpHtml(t *testing.T) {
-	t.Skip("only manual run")
+func TestManualFastHttpHtml(t *testing.T) {
 	target := runTestServer()
 	c := NewLoggingFastHTTPClient(true)
 

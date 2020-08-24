@@ -29,7 +29,7 @@ func DefaultRunnerCfg() *RunnerConfig {
 	}
 }
 
-func TestAttackSuccess(t *testing.T) {
+func TestCommonAttackSuccess(t *testing.T) {
 	r := NewRunner(DefaultRunnerCfg(), &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 10
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.TestTimeSec)*time.Second)
@@ -37,7 +37,7 @@ func TestAttackSuccess(t *testing.T) {
 	r.CancelFunc = cancel
 
 	// sync
-	go attack(r.attackers[0], r, nil)
+	go attack(r.attackers[0], r)
 	r.next <- attackToken{
 		Step: 1,
 		Tick: 1,
@@ -51,7 +51,7 @@ func TestAttackSuccess(t *testing.T) {
 	}
 
 	// async
-	go asyncAttack(r.attackers[0], r, nil)
+	go asyncAttack(r.attackers[0], r)
 	r.next <- attackToken{
 		Step: 1,
 		Tick: 1,
@@ -65,7 +65,7 @@ func TestAttackSuccess(t *testing.T) {
 	}
 }
 
-func TestAttackTimeout(t *testing.T) {
+func TestCommonAttackTimeout(t *testing.T) {
 	r := NewRunner(DefaultRunnerCfg(), &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 2000
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.TestTimeSec)*time.Second)
@@ -73,7 +73,7 @@ func TestAttackTimeout(t *testing.T) {
 	r.CancelFunc = cancel
 
 	// sync
-	go attack(r.attackers[0], r, nil)
+	go attack(r.attackers[0], r)
 	r.next <- attackToken{
 		Step: 1,
 		Tick: 1,
@@ -84,7 +84,7 @@ func TestAttackTimeout(t *testing.T) {
 	}
 
 	// async
-	go attack(r.attackers[0], r, nil)
+	go attack(r.attackers[0], r)
 	r.next <- attackToken{
 		Step: 1,
 		Tick: 1,

@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPrivateSystemRunnerSuccess(t *testing.T) {
+func TestCommonPrivateSystemRunnerSuccess(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
 		Attackers:       10,
@@ -33,7 +33,7 @@ func TestPrivateSystemRunnerSuccess(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestOpenWorldSystemRunnerSuccess(t *testing.T) {
+func TestCommonOpenWorldSystemRunnerSuccess(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
 		SystemMode:      OpenWorldSystem,
@@ -52,7 +52,7 @@ func TestOpenWorldSystemRunnerSuccess(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestMultipleRunnersSuccess(t *testing.T) {
+func TestCommonMultipleRunnersSuccess(t *testing.T) {
 	cfg := &RunnerConfig{
 		Name:            "test_runner",
 		Attackers:       1,
@@ -81,7 +81,7 @@ func TestMultipleRunnersSuccess(t *testing.T) {
 	require.NoError(t, err4)
 }
 
-func TestRunnerFailOnFirstError(t *testing.T) {
+func TestCommonRunnerFailOnFirstError(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:             "test_runner",
 		Attackers:        10,
@@ -108,7 +108,7 @@ func TestRunnerFailOnFirstError(t *testing.T) {
 	require.Equal(t, int64(1), r.Failed)
 }
 
-func TestRunnerHangedRequestsAfterTimeoutNoError(t *testing.T) {
+func TestCommonRunnerHangedRequestsAfterTimeoutNoError(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:             "test_runner",
 		SystemMode:       PrivateSystem,
@@ -131,7 +131,7 @@ func TestRunnerHangedRequestsAfterTimeoutNoError(t *testing.T) {
 	require.Empty(t, r.uniqErrors)
 }
 
-func TestPrivateSystemRunnerIsSync(t *testing.T) {
+func TestCommonPrivateSystemRunnerIsSync(t *testing.T) {
 	rps := 100
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
@@ -153,7 +153,7 @@ func TestPrivateSystemRunnerIsSync(t *testing.T) {
 	require.GreaterOrEqual(t, int(maxRPS), rps)
 }
 
-func TestRunnerMaxRPSPrivateSystem(t *testing.T) {
+func TestCommonRunnerMaxRPSPrivateSystem(t *testing.T) {
 	rps := 100
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
@@ -176,7 +176,7 @@ func TestRunnerMaxRPSPrivateSystem(t *testing.T) {
 	require.Less(t, int(maxRPS), 74)
 }
 
-func TestRunnerMaxRPSOpenWorldSystem(t *testing.T) {
+func TestCommonRunnerMaxRPSOpenWorldSystem(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
 		SystemMode:      OpenWorldSystem,
@@ -195,7 +195,7 @@ func TestRunnerMaxRPSOpenWorldSystem(t *testing.T) {
 	require.GreaterOrEqual(t, int(maxRPS), 400)
 }
 
-func TestRunnerConstantLoad(t *testing.T) {
+func TestCommonRunnerConstantLoad(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
 		SystemMode:      OpenWorldSystem,
@@ -228,11 +228,11 @@ func TestRunnerConstantLoad(t *testing.T) {
 	r2.controlled.Sleep = 300
 	maxRPS2, err2 := r2.Run(context.TODO())
 	require.NoError(t, err2)
-	require.Greater(t, int(maxRPS2), 30)
-	require.Less(t, int(maxRPS2), 33)
+	require.GreaterOrEqual(t, int(maxRPS2), 30)
+	require.LessOrEqual(t, int(maxRPS2), 33)
 }
 
-func TestReportMetrics(t *testing.T) {
+func TestCommonReportMetrics(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
 		SystemMode:      PrivateSystem,
