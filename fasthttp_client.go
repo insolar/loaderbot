@@ -24,7 +24,9 @@ type FastHTTPClient struct {
 func NewLoggingFastHTTPClient(debug bool) *FastHTTPClient {
 	return &FastHTTPClient{
 		debug,
-		fasthttp.Client{},
+		fasthttp.Client{
+			MaxConnsPerHost: 30000,
+		},
 	}
 }
 

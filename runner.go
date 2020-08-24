@@ -11,6 +11,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -101,8 +102,10 @@ type Runner struct {
 	// data used to control attackers in test
 	controlled Controlled
 	// TestData data shared between attackers during test
-	TestData interface{}
-	L        *Logger
+	TestData       interface{}
+	HTTPClient     *http.Client
+	FastHTTPClient *FastHTTPClient
+	L              *Logger
 }
 
 // NewRunner creates new runner with constant amount of attackers by RunnerConfig
@@ -124,6 +127,8 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		uniqErrors:            make(map[string]int),
 		controlled:            Controlled{},
 		TestData:              data,
+		HTTPClient:            NewLoggingHTTPClient(cfg.DumpTransport, cfg.AttackerTimeout),
+		FastHTTPClient:        NewLoggingFastHTTPClient(cfg.DumpTransport),
 		L:                     NewLogger(cfg).With("runner", cfg.Name),
 	}
 	for i := 0; i < cfg.Attackers; i++ {

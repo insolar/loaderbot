@@ -9,12 +9,10 @@ package loaderbot
 
 import (
 	"context"
-	"net/http"
 )
 
 type HTTPAttackerExample struct {
 	*Runner
-	client *http.Client
 }
 
 func (a *HTTPAttackerExample) Clone(r *Runner) Attack {
@@ -22,12 +20,11 @@ func (a *HTTPAttackerExample) Clone(r *Runner) Attack {
 }
 
 func (a *HTTPAttackerExample) Setup(c RunnerConfig) error {
-	a.client = NewLoggingHTTPClient(c.DumpTransport, 10)
 	return nil
 }
 
 func (a *HTTPAttackerExample) Do(_ context.Context) DoResult {
-	res, err := a.client.Get(a.Cfg.TargetUrl)
+	res, err := a.HTTPClient.Get(a.Cfg.TargetUrl)
 	if res != nil {
 		defer res.Body.Close()
 	}

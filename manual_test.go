@@ -210,17 +210,17 @@ func TestManualLeak(t *testing.T) {
 }
 
 func TestManualRunnerNginxStaticAttackFastHTTP(t *testing.T) {
-	go pprofTrace("fast_http", 40)
+	// go pprofTrace("fast_http", 40)
 	// go tool trace -http=':8081' ${FILENAME}
 	r := NewRunner(&RunnerConfig{
 		TargetUrl:        "http://52.186.11.217:8080/static.html",
 		Name:             "nginx_test",
 		SystemMode:       PrivateSystem,
-		Attackers:        2000,
-		AttackerTimeout:  10,
+		Attackers:        3000,
+		AttackerTimeout:  25,
 		StartRPS:         1000,
 		StepDurationSec:  5,
-		StepRPS:          2000,
+		StepRPS:          3000,
 		TestTimeSec:      40,
 		FailOnFirstError: true,
 	}, &FastHTTPAttackerExample{}, nil)
@@ -231,15 +231,16 @@ func TestManualRunnerNginxStaticAttackDefaultHTTP(t *testing.T) {
 	go pprofTrace("default_http", 40)
 	// go tool trace -http=':8081' ${FILENAME}
 	r := NewRunner(&RunnerConfig{
-		TargetUrl:       "http://52.186.11.217:8080/static.html",
-		Name:            "nginx_test",
-		SystemMode:      PrivateSystem,
-		Attackers:       2000,
-		AttackerTimeout: 5,
-		StartRPS:        1000,
-		StepDurationSec: 5,
-		StepRPS:         2000,
-		TestTimeSec:     40,
+		TargetUrl:        "http://52.186.11.217:8080/static.html",
+		Name:             "nginx_test",
+		SystemMode:       PrivateSystem,
+		Attackers:        1000,
+		AttackerTimeout:  25,
+		StartRPS:         1000,
+		StepDurationSec:  5,
+		StepRPS:          2000,
+		TestTimeSec:      40,
+		FailOnFirstError: true,
 	}, &HTTPAttackerExample{}, nil)
 	_, _ = r.Run(context.TODO())
 }
