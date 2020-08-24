@@ -14,8 +14,7 @@ import (
 	"time"
 )
 
-func TestDynamicLatencyAsync(t *testing.T) {
-	t.Skip("only manual run")
+func TestManualDynamicLatencyAsync(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
 		SystemMode:      OpenWorldSystem,
@@ -42,8 +41,7 @@ func TestDynamicLatencyAsync(t *testing.T) {
 	_, _ = r.Run(context.TODO())
 }
 
-func TestDynamicLatencySync(t *testing.T) {
-	t.Skip("only manual run")
+func TestManualDynamicLatencySync(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
 		SystemMode:      PrivateSystem,
@@ -71,8 +69,7 @@ func TestDynamicLatencySync(t *testing.T) {
 	_, _ = r.Run(context.TODO())
 }
 
-func TestRunnerRealServiceAttack(t *testing.T) {
-	t.Skip("only manual run")
+func TestManualRunnerRealServiceAttack(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		TargetUrl:       "https://clients5.google.com/pagead/drt/dn/",
 		Name:            "test_runner",
@@ -87,8 +84,7 @@ func TestRunnerRealServiceAttack(t *testing.T) {
 	_, _ = r.Run(context.TODO())
 }
 
-func TestAllJitter(t *testing.T) {
-	t.Skip("only manual run")
+func TestManualAllJitter(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner_open_world_decrease",
 		SystemMode:      OpenWorldSystem,
@@ -192,8 +188,7 @@ func TestAllJitter(t *testing.T) {
 	_, _ = r4.Run(context.TODO())
 }
 
-func TestLeak(t *testing.T) {
-	t.Skip("only manual run")
+func TestManualLeak(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		r := NewRunner(&RunnerConfig{
 			Name:            "test_runner_open_world_decrease",
@@ -214,8 +209,7 @@ func TestLeak(t *testing.T) {
 	}
 }
 
-func TestRunnerNginxStaticAttackFastHTTP(t *testing.T) {
-	t.Skip("only manual run")
+func TestManualRunnerNginxStaticAttackFastHTTP(t *testing.T) {
 	go pprofTrace("fast_http", 40)
 	// go tool trace -http=':8081' ${FILENAME}
 	r := NewRunner(&RunnerConfig{
@@ -233,19 +227,18 @@ func TestRunnerNginxStaticAttackFastHTTP(t *testing.T) {
 	_, _ = r.Run(context.TODO())
 }
 
-func TestRunnerNginxStaticAttackDefaultHTTP(t *testing.T) {
-	t.Skip("only manual run")
+func TestManualRunnerNginxStaticAttackDefaultHTTP(t *testing.T) {
 	go pprofTrace("default_http", 40)
 	// go tool trace -http=':8081' ${FILENAME}
 	r := NewRunner(&RunnerConfig{
 		TargetUrl:       "http://52.186.11.217:8080/static.html",
 		Name:            "nginx_test",
 		SystemMode:      PrivateSystem,
-		Attackers:       3000,
+		Attackers:       2000,
 		AttackerTimeout: 5,
 		StartRPS:        1000,
 		StepDurationSec: 5,
-		StepRPS:         200,
+		StepRPS:         2000,
 		TestTimeSec:     40,
 	}, &HTTPAttackerExample{}, nil)
 	_, _ = r.Run(context.TODO())

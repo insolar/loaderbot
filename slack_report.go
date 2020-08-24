@@ -56,7 +56,7 @@ func SlackScalingChart(path string) (*chart.Chart, error) {
 	}
 	for _, v := range requests {
 		if len(v.XValues) == 0 || len(v.YValues) == 0 {
-			return nil, errors.New("empty csv, nothing to report")
+			return nil, errors.New("empty csv, nothing to plot")
 		}
 	}
 	var series []chart.Series
@@ -160,7 +160,7 @@ func ResponsesChart(chartTitle string, path string) (*chart.Chart, error) {
 	}
 	for _, v := range percs {
 		if len(v.XValues) == 0 || len(v.YValues) == 0 {
-			return nil, errors.New("empty csv, nothing to report")
+			return nil, errors.New("empty csv, nothing to plot")
 		}
 	}
 	var series []chart.Series

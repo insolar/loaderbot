@@ -14,15 +14,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestReportScaling(t *testing.T) {
+func TestCommonReportScaling(t *testing.T) {
 	ReportScaling("example_csv_data/scaling.csv", "scaling.html")
 }
 
-func TestReportScalingSlack(t *testing.T) {
+func TestCommonReportScalingSlack(t *testing.T) {
 	ReportScalingSlack("example_csv_data/scaling.csv", "scaling.png")
 }
 
-func TestRenderPercs(t *testing.T) {
+func TestCommonRenderPercs(t *testing.T) {
 	data, err := PercsChart("example_csv_data/percs.csv", "Response times")
 	if err != nil {
 		log.Fatal(err)
@@ -31,7 +31,7 @@ func TestRenderPercs(t *testing.T) {
 	html2png("responses.html")
 }
 
-func TestRenderErr(t *testing.T) {
+func TestCommonRenderErr(t *testing.T) {
 	_, err := PercsChart("example_csv_data/empty.csv", "Response times")
 	require.Error(t, err)
 }

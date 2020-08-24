@@ -9,7 +9,6 @@ package loaderbot
 
 import (
 	"context"
-	"sync"
 	"time"
 )
 
@@ -29,30 +28,72 @@ type Attack interface {
 }
 
 // attack receives schedule signal and attacks target calling Do() method, returning AttackResult with timings
-func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
-	if wg != nil {
-		defer wg.Done()
-	}
-	for {
+func attack(a Attack, r *Runner) {
+	for nextMsg := range r.next {
+		token := nextMsg
+		requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.AttackerTimeout)*time.Second)
+
+		tStart := time.Now()
+
+		done := make(chan DoResult)
+		var doResult DoResult
+
+		go func() {
+			select {
+			case <-r.TimeoutCtx.Done():
+				requestCtxCancel()
+				return
+			case done <- a.Do(requestCtx):
+			}
+		}()
+		// either get the result from the attacker or from the timeout
 		select {
 		case <-r.TimeoutCtx.Done():
+			requestCtxCancel()
 			return
-		case nextMsg := <-r.next:
-			requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.AttackerTimeout)*time.Second)
+		case <-requestCtx.Done():
+			doResult = DoResult{
+				RequestLabel: r.Name,
+				Error:        errAttackDoTimedOut,
+			}
+		case doResult = <-done:
+		}
 
-			tStart := time.Now()
+		tEnd := time.Now()
 
-			done := make(chan DoResult)
-			var doResult DoResult
+		atkResult := AttackResult{
+			AttackToken: token,
+			Begin:       tStart,
+			End:         tEnd,
+			Elapsed:     tEnd.Sub(tStart),
+			DoResult:    doResult,
+		}
+		requestCtxCancel()
+		r.results <- atkResult
+	}
+}
 
-			go func() {
-				select {
-				case <-r.TimeoutCtx.Done():
-					requestCtxCancel()
-					return
-				case done <- a.Do(requestCtx):
-				}
-			}()
+// asyncAttack receives schedule signal and attacks target calling Do() method asynchronously, returning AttackResult with timings
+func asyncAttack(a Attack, r *Runner) {
+	for nextMsg := range r.next {
+		token := nextMsg
+		requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.AttackerTimeout)*time.Second)
+
+		tStart := time.Now()
+
+		done := make(chan DoResult)
+		var doResult DoResult
+
+		go func() {
+			select {
+			case <-r.TimeoutCtx.Done():
+				requestCtxCancel()
+				return
+			case done <- a.Do(requestCtx):
+			}
+		}()
+
+		go func() {
 			// either get the result from the attacker or from the timeout
 			select {
 			case <-r.TimeoutCtx.Done():
@@ -69,7 +110,7 @@ func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
 			tEnd := time.Now()
 
 			atkResult := AttackResult{
-				AttackToken: nextMsg,
+				AttackToken: token,
 				Begin:       tStart,
 				End:         tEnd,
 				Elapsed:     tEnd.Sub(tStart),
@@ -77,62 +118,6 @@ func attack(a Attack, r *Runner, wg *sync.WaitGroup) {
 			}
 			requestCtxCancel()
 			r.results <- atkResult
-		}
-	}
-}
-
-// asyncAttack receives schedule signal and attacks target calling Do() method asynchronously, returning AttackResult with timings
-func asyncAttack(a Attack, r *Runner, wg *sync.WaitGroup) {
-	if wg != nil {
-		defer wg.Done()
-	}
-	for {
-		select {
-		case <-r.TimeoutCtx.Done():
-			return
-		case nextMsg := <-r.next:
-			requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.AttackerTimeout)*time.Second)
-
-			tStart := time.Now()
-
-			done := make(chan DoResult)
-			var doResult DoResult
-
-			go func() {
-				select {
-				case <-r.TimeoutCtx.Done():
-					requestCtxCancel()
-					return
-				case done <- a.Do(requestCtx):
-				}
-			}()
-
-			go func() {
-				// either get the result from the attacker or from the timeout
-				select {
-				case <-r.TimeoutCtx.Done():
-					requestCtxCancel()
-					return
-				case <-requestCtx.Done():
-					doResult = DoResult{
-						RequestLabel: r.Name,
-						Error:        errAttackDoTimedOut,
-					}
-				case doResult = <-done:
-				}
-
-				tEnd := time.Now()
-
-				atkResult := AttackResult{
-					AttackToken: nextMsg,
-					Begin:       tStart,
-					End:         tEnd,
-					Elapsed:     tEnd.Sub(tStart),
-					DoResult:    doResult,
-				}
-				requestCtxCancel()
-				r.results <- atkResult
-			}()
-		}
+		}()
 	}
 }

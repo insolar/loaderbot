@@ -9,7 +9,6 @@ package main
 
 import (
 	"context"
-	"sync"
 
 	"github.com/insolar/loaderbot"
 	"github.com/insolar/loaderbot/examples/attackers"
@@ -26,10 +25,10 @@ func main() {
 		StepRPS:         1,
 		TestTimeSec:     200,
 	}
-	lt := loaderbot.NewRunner(cfg, &attackers.DataAttackerExample{}, &attackers.SharedData{
-		Mutex: &sync.Mutex{},
-		Index: 0,
-		Data:  []string{"data1", "data2", "data3"},
-	})
+	lt := loaderbot.NewRunner(
+		cfg,
+		&attackers.DataAttackerExample{},
+		loaderbot.NewSharedDataSlice([]interface{}{"data1", "data2", "data3"}),
+	)
 	_, _ = lt.Run(context.TODO())
 }

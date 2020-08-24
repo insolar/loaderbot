@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/jinzhu/copier"
 	"google.golang.org/grpc"
 )
 
@@ -32,16 +33,17 @@ func NewNodeClient(addr string) *NodeClient {
 
 func (m *NodeClient) StartRunner(cluster *ClusterClient) {
 	var err error
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cluster.testCfg.TestTimeSec)*time.Second)
 	defer cancel()
+	nodeCfg := cluster.configToNodes()
 	m.stream, err = m.Run(ctx, &RunConfigRequest{
-		Config:       MarshalConfigGob(cluster.testCfg),
+		Config:       MarshalConfigGob(nodeCfg),
 		AttackerName: "http",
 	})
 	if err != nil {
 		cluster.L.Fatal(err)
 	}
-	m.receive(cluster)
+	m.receive(ctx, cluster)
 }
 
 func (m *NodeClient) Shutdown() {
@@ -54,25 +56,22 @@ func (m *NodeClient) Close() {
 	m.conn.Close()
 }
 
-func (m *NodeClient) receive(cluster *ClusterClient) {
+func (m *NodeClient) receive(_ context.Context, cluster *ClusterClient) {
 	for {
 		res, err := m.stream.Recv()
-		if res == nil {
+		if err == io.EOF || res == nil {
 			atomic.AddInt32(&cluster.activeClients, -1)
 			return
 		}
-		if err == io.EOF {
+		if err != nil {
 			atomic.AddInt32(&cluster.activeClients, -1)
-			return
+			cluster.L.Error(err)
 		}
 		b := bytes.NewBuffer(res.ResultsChunk)
 		dec := gob.NewDecoder(b)
 		var results []AttackResult
 		if err := dec.Decode(&results); err != nil {
 			cluster.L.Fatal(err)
-		}
-		if err != nil {
-			cluster.L.Error(err)
 		}
 		cluster.Results <- results
 	}
@@ -88,21 +87,60 @@ type ClusterClient struct {
 	clients            []*NodeClient
 	Results            chan []AttackResult
 	clusterTickMetrics map[int]*ClusterTickMetrics
+	Report             *Report
 	L                  *Logger
 }
 
 func NewClusterClient(cfg *RunnerConfig) *ClusterClient {
 	clients := make([]*NodeClient, 0)
+	var failed bool
 	for _, addr := range cfg.ClusterOptions.Nodes {
-		clients = append(clients, NewNodeClient(addr))
+		c := NewNodeClient(addr)
+		res, err := c.Status(context.Background(), &StatusRequest{})
+		if err != nil {
+			log.Fatal(err)
+		}
+		if res.Busy {
+			log.Printf(errNodeIsBusy, addr)
+			failed = true
+		}
+		clients = append(clients, c)
 	}
-	return &ClusterClient{
+	c := &ClusterClient{
 		testCfg:            cfg,
 		clients:            clients,
 		Results:            make(chan []AttackResult),
 		clusterTickMetrics: make(map[int]*ClusterTickMetrics),
+		failed:             failed,
 		L:                  NewLogger(cfg).With("cluster", cfg.Name),
 	}
+	if cfg.ReportOptions.CSV {
+		c.Report = NewReport(cfg)
+	}
+	return c
+}
+
+func (m *ClusterClient) configToNodes() *RunnerConfig {
+	var nodeTestCfg RunnerConfig
+	if err := copier.Copy(&nodeTestCfg, &m.testCfg); err != nil {
+		m.L.Fatal(err)
+	}
+	// no need to write logs on nodes in cluster mode
+	nodeTestCfg.ReportOptions.CSV = false
+	nodeTestCfg.ReportOptions.PNG = false
+	// split start/step rps by nodes equally
+	nodeTestCfg.Attackers = nodeTestCfg.Attackers / len(nodeTestCfg.ClusterOptions.Nodes)
+	nodeTestCfg.StartRPS = nodeTestCfg.StartRPS / len(nodeTestCfg.ClusterOptions.Nodes)
+	nodeTestCfg.StepRPS = nodeTestCfg.StepRPS / len(nodeTestCfg.ClusterOptions.Nodes)
+	return &nodeTestCfg
+}
+
+func (m *ClusterClient) CheckBusy() bool {
+	res, err := m.clients[0].Status(context.Background(), &StatusRequest{})
+	if err != nil {
+		m.L.Error(err)
+	}
+	return res.Busy
 }
 
 func (m *ClusterClient) Run() {
@@ -113,6 +151,10 @@ func (m *ClusterClient) Run() {
 	m.collectResults()
 	for _, c := range m.clients {
 		c.Close()
+	}
+	if m.testCfg.ReportOptions.CSV {
+		m.Report.flushLogs()
+		m.Report.plot()
 	}
 }
 
@@ -131,6 +173,7 @@ func (m *ClusterClient) collectResults() {
 			currentTickMetrics := m.clusterTickMetrics[tick]
 			currentTickMetrics.Samples = append(currentTickMetrics.Samples, res)
 			if len(currentTickMetrics.Samples) == len(m.testCfg.ClusterOptions.Nodes) {
+				// aggregate over all ticks across cluster
 				for _, sampleBatch := range currentTickMetrics.Samples {
 					for _, s := range sampleBatch {
 						currentTickMetrics.Metrics.add(s)
@@ -141,7 +184,6 @@ func (m *ClusterClient) collectResults() {
 					"step: %d, tick: %d, rate [%4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
 					token.Step,
 					tick,
-					// TODO: fix this to fired RPS aggregation
 					currentTickMetrics.Metrics.Rate,
 					token.TargetRPS*len(m.testCfg.ClusterOptions.Nodes),
 					currentTickMetrics.Metrics.Latencies.P50,
@@ -150,6 +192,9 @@ func (m *ClusterClient) collectResults() {
 					currentTickMetrics.Metrics.Requests,
 					currentTickMetrics.Metrics.successLogEntry(),
 				)
+				if m.testCfg.ReportOptions.CSV {
+					m.Report.writePercentilesEntry(res[0], currentTickMetrics.Metrics)
+				}
 				// shutdown other Nodes if error is present in tick
 				if m.shutdownOnNodeSampleError(currentTickMetrics) {
 					return
