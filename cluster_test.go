@@ -86,7 +86,7 @@ func TestCommonClusterNodeIsBusy(t *testing.T) {
 		StartRPS:        100,
 		StepDurationSec: 5,
 		StepRPS:         20,
-		TestTimeSec:     1,
+		TestTimeSec:     2,
 		LogEncoding:     "console",
 		LogLevel:        "info",
 		ReportOptions: &ReportOptions{
