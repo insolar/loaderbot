@@ -10,27 +10,9 @@ package attackers
 import (
 	"context"
 	"net/http"
-	"sync"
 
 	"github.com/insolar/loaderbot"
 )
-
-type SharedData struct {
-	*sync.Mutex
-	Index int
-	Data  []string
-}
-
-func (m *SharedData) GetNextData() string {
-	m.Lock()
-	if m.Index > len(m.Data)-1 {
-		m.Index = 0
-	}
-	data := m.Data[m.Index]
-	m.Index++
-	m.Unlock()
-	return data
-}
 
 type DataAttackerExample struct {
 	*loaderbot.Runner
@@ -47,7 +29,7 @@ func (a *DataAttackerExample) Setup(c loaderbot.RunnerConfig) error {
 }
 
 func (a *DataAttackerExample) Do(_ context.Context) loaderbot.DoResult {
-	data := a.TestData.(*SharedData).GetNextData()
+	data := a.TestData.(*loaderbot.SharedDataSlice).Get()
 	a.Runner.L.Infof("firing with data: %s", data)
 	_, err := a.client.Get(a.Cfg.TargetUrl)
 	if err != nil {
