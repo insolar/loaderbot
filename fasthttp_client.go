@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"log"
 	"reflect"
+	"time"
 
 	"github.com/valyala/fasthttp"
 )
@@ -25,7 +26,9 @@ func NewLoggingFastHTTPClient(debug bool) *FastHTTPClient {
 	return &FastHTTPClient{
 		debug,
 		fasthttp.Client{
-			MaxConnsPerHost: 30000,
+			MaxConnsPerHost:           30000,
+			MaxIdleConnDuration:       5 * time.Second,
+			MaxIdemponentCallAttempts: 0,
 		},
 	}
 }

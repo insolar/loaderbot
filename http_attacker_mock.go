@@ -9,6 +9,8 @@ package loaderbot
 
 import (
 	"context"
+	"io"
+	"io/ioutil"
 )
 
 type HTTPAttackerExample struct {
@@ -26,6 +28,7 @@ func (a *HTTPAttackerExample) Setup(c RunnerConfig) error {
 func (a *HTTPAttackerExample) Do(_ context.Context) DoResult {
 	res, err := a.HTTPClient.Get(a.Cfg.TargetUrl)
 	if res != nil {
+		io.Copy(ioutil.Discard, res.Body)
 		defer res.Body.Close()
 	}
 	if err != nil {

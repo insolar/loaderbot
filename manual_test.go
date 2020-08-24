@@ -216,9 +216,9 @@ func TestManualRunnerNginxStaticAttackFastHTTP(t *testing.T) {
 		TargetUrl:        "http://52.186.11.217:8080/static.html",
 		Name:             "nginx_test",
 		SystemMode:       PrivateSystem,
-		Attackers:        3000,
+		Attackers:        5000,
 		AttackerTimeout:  25,
-		StartRPS:         1000,
+		StartRPS:         5000,
 		StepDurationSec:  5,
 		StepRPS:          3000,
 		TestTimeSec:      40,
@@ -228,13 +228,13 @@ func TestManualRunnerNginxStaticAttackFastHTTP(t *testing.T) {
 }
 
 func TestManualRunnerNginxStaticAttackDefaultHTTP(t *testing.T) {
-	go pprofTrace("default_http", 40)
+	// go pprofTrace("default_http", 40)
 	// go tool trace -http=':8081' ${FILENAME}
 	r := NewRunner(&RunnerConfig{
 		TargetUrl:        "http://52.186.11.217:8080/static.html",
 		Name:             "nginx_test",
 		SystemMode:       PrivateSystem,
-		Attackers:        1000,
+		Attackers:        3000,
 		AttackerTimeout:  25,
 		StartRPS:         1000,
 		StepDurationSec:  5,

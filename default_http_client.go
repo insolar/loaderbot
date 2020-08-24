@@ -21,12 +21,16 @@ import (
 // NewLoggintHTTPClient creates new client with debug http
 func NewLoggingHTTPClient(debug bool, transportTimeout int) *http.Client {
 	var transport http.RoundTripper
+	defaultTransport := http.DefaultTransport.(*http.Transport).Clone()
+	defaultTransport.MaxConnsPerHost = 30000
+	defaultTransport.MaxIdleConns = 30000
+	defaultTransport.MaxIdleConnsPerHost = 30000
 	if debug {
 		transport = &DumpTransport{
-			http.DefaultTransport,
+			defaultTransport,
 		}
 	} else {
-		transport = http.DefaultTransport
+		transport = defaultTransport
 	}
 	cookieJar, _ := cookiejar.New(nil)
 	return &http.Client{
@@ -52,7 +56,6 @@ type DumpTransport struct {
 func (d *DumpTransport) RoundTrip(h *http.Request) (*http.Response, error) {
 	var respString string
 	var pprintBody string
-	h.Header.Set("X-Content-Type-Options", "nosniff")
 	dump, _ := httputil.DumpRequestOut(h, true)
 	if bodyIsJson(h.Header) {
 		req, pprintBody := d.prettyPrintJsonBody(dump)
