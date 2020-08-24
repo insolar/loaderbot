@@ -28,7 +28,12 @@ func (a *HTTPAttackerExample) Setup(c RunnerConfig) error {
 func (a *HTTPAttackerExample) Do(_ context.Context) DoResult {
 	res, err := a.HTTPClient.Get(a.Cfg.TargetUrl)
 	if res != nil {
-		io.Copy(ioutil.Discard, res.Body)
+		if _, err = io.Copy(ioutil.Discard, res.Body); err != nil {
+			return DoResult{
+				RequestLabel: a.Name,
+				Error:        err.Error(),
+			}
+		}
 		defer res.Body.Close()
 	}
 	if err != nil {
