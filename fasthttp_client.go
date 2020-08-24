@@ -26,7 +26,9 @@ func NewLoggingFastHTTPClient(debug bool) *FastHTTPClient {
 	return &FastHTTPClient{
 		debug,
 		fasthttp.Client{
-			MaxConnWaitTimeout: 2 * time.Second,
+			MaxConnsPerHost:           30000,
+			MaxIdleConnDuration:       5 * time.Second,
+			MaxIdemponentCallAttempts: 0,
 		},
 	}
 }

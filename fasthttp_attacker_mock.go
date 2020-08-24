@@ -15,7 +15,6 @@ import (
 
 type FastHTTPAttackerExample struct {
 	*Runner
-	client *FastHTTPClient
 }
 
 func (a *FastHTTPAttackerExample) Clone(r *Runner) Attack {
@@ -23,7 +22,6 @@ func (a *FastHTTPAttackerExample) Clone(r *Runner) Attack {
 }
 
 func (a *FastHTTPAttackerExample) Setup(c RunnerConfig) error {
-	a.client = NewLoggingFastHTTPClient(c.DumpTransport)
 	return nil
 }
 
@@ -33,7 +31,7 @@ func (a *FastHTTPAttackerExample) Do(_ context.Context) DoResult {
 	resp := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(resp)
-	err := a.client.Do(req, resp)
+	err := a.FastHTTPClient.Do(req, resp)
 	if resp.StatusCode() >= 400 {
 		return DoResult{
 			Error: "request failed",

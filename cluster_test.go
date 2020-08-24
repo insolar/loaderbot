@@ -73,7 +73,7 @@ func TestCommonClusterShutdownOnError(t *testing.T) {
 }
 
 func TestCommonClusterNodeIsBusy(t *testing.T) {
-	s1 := RunService("localhost:50051")
+	s1 := RunService("localhost:50057")
 	defer s1.GracefulStop()
 	time.Sleep(1 * time.Second)
 
@@ -86,7 +86,7 @@ func TestCommonClusterNodeIsBusy(t *testing.T) {
 		StartRPS:        100,
 		StepDurationSec: 5,
 		StepRPS:         20,
-		TestTimeSec:     1,
+		TestTimeSec:     2,
 		LogEncoding:     "console",
 		LogLevel:        "info",
 		ReportOptions: &ReportOptions{
@@ -95,11 +95,12 @@ func TestCommonClusterNodeIsBusy(t *testing.T) {
 			Stream: true,
 		},
 		ClusterOptions: &ClusterOptions{
-			Nodes: []string{"localhost:50051"},
+			Nodes: []string{"localhost:50057"},
 		},
 	}
 	c := NewClusterClient(cfg)
 	go c.Run()
+	time.Sleep(1 * time.Second)
 	c2 := NewClusterClient(cfg)
 	require.True(t, c2.failed)
 }
