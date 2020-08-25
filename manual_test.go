@@ -236,7 +236,7 @@ func TestManualRunnerNginxStaticAttackDefaultHTTP(t *testing.T) {
 		SystemMode:       PrivateSystem,
 		Attackers:        3000,
 		AttackerTimeout:  25,
-		StartRPS:         1000,
+		StartRPS:         7000,
 		StepDurationSec:  5,
 		StepRPS:          2000,
 		TestTimeSec:      40,

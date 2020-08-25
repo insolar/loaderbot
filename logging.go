@@ -32,7 +32,7 @@ func setupLogger(encoding string, level string) *Logger {
 	rawJSON := []byte(fmt.Sprintf(`{
 	  "level": "%s",
 	  "encoding": "%s",
-	  "outputPaths": ["stdout", "/tmp/logs"],
+	  "outputPaths": ["stdout"],
 	  "errorOutputPaths": ["stderr"],
 	  "encoderConfig": {
 	    "messageKey": "message",
