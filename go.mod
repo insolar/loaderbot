@@ -14,6 +14,7 @@ require (
 	github.com/json-iterator/go v1.1.10
 	github.com/klauspost/compress v1.10.11 // indirect
 	github.com/ory/go-acc v0.2.3 // indirect
+	github.com/prometheus/client_golang v1.7.1
 	github.com/streadway/quantile v0.0.0-20150917103942-b0c588724d25
 	github.com/stretchr/testify v1.6.1
 	github.com/valyala/fasthttp v1.16.0

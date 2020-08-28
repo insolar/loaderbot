@@ -43,6 +43,7 @@ func attack(a Attack, r *Runner) {
 			case <-r.TimeoutCtx.Done():
 				requestCtxCancel()
 				return
+			case <-requestCtx.Done():
 			case done <- a.Do(requestCtx):
 			}
 		}()
@@ -69,6 +70,9 @@ func attack(a Attack, r *Runner) {
 			DoResult:    doResult,
 		}
 		requestCtxCancel()
+		if err := a.Teardown(); err != nil {
+			r.L.Infof("teardown failed: %s", err)
+		}
 		r.results <- atkResult
 	}
 }
@@ -89,6 +93,7 @@ func asyncAttack(a Attack, r *Runner) {
 			case <-r.TimeoutCtx.Done():
 				requestCtxCancel()
 				return
+			case <-requestCtx.Done():
 			case done <- a.Do(requestCtx):
 			}
 		}()
@@ -117,6 +122,9 @@ func asyncAttack(a Attack, r *Runner) {
 				DoResult:    doResult,
 			}
 			requestCtxCancel()
+			if err := a.Teardown(); err != nil {
+				r.L.Infof("teardown failed: %s", err)
+			}
 			r.results <- atkResult
 		}()
 	}

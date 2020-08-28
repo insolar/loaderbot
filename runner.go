@@ -17,11 +17,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/ratelimit"
 )
 
 const (
-	DefaultResultsQueueCapacity = 100000
+	DefaultResultsQueueCapacity = 100_000
 	MetricsLogFile              = "requests_%s_%s_%d.csv"
 	PercsLogFile                = "percs_%s_%s_%d.csv"
 	ReportGraphFile             = "percs_%s_%s_%d.html"
@@ -105,6 +106,7 @@ type Runner struct {
 	TestData       interface{}
 	HTTPClient     *http.Client
 	FastHTTPClient *FastHTTPClient
+	PromReporter   *PromReporter
 	L              *Logger
 }
 
@@ -140,6 +142,15 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 	}
 	if cfg.ReportOptions.CSV {
 		r.Report = NewReport(r.Cfg)
+	}
+	if cfg.Prometheus != nil && cfg.Prometheus.Enable {
+		http.Handle("/metrics", promhttp.Handler())
+		var port int
+		if cfg.Prometheus.Port == 0 {
+			port = 2112
+		}
+		// nolint
+		go http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 	}
 	return r
 }
@@ -295,6 +306,9 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 		)
 		if r.Cfg.ReportOptions.CSV {
 			r.Report.writePercentilesEntry(res, currentTickMetrics.Metrics)
+		}
+		if r.Cfg.Prometheus != nil && r.Cfg.Prometheus.Enable {
+			r.PromReporter.reportTick(currentTickMetrics)
 		}
 		currentTickMetrics.Reported = true
 	}

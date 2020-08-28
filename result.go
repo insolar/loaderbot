@@ -21,11 +21,12 @@ type AttackResult struct {
 
 func (a AttackResult) String() string {
 	return fmt.Sprintf(
-		"Begin: %s, End: %s, Elapsed: %d, msg: %s",
+		"Begin: %s, End: %s, Elapsed: %d, token: [%s], doResult: %v",
 		a.Begin.Format(time.RFC3339),
 		a.End.Format(time.RFC3339),
 		a.Elapsed,
 		a.AttackToken,
+		a.DoResult,
 	)
 }
 

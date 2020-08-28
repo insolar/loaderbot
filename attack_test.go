@@ -60,7 +60,7 @@ func TestCommonAttackSuccess(t *testing.T) {
 	if got, want := res2.DoResult.Error, ""; got != want {
 		t.Fatalf("got %v want %v", got, want)
 	}
-	if got, want := int(res.Elapsed), int(r.controlled.Sleep); got < want {
+	if got, want := int(res2.Elapsed), int(r.controlled.Sleep); got < want {
 		t.Fatalf("got %v want >= %v", got, want)
 	}
 }

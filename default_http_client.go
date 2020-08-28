@@ -22,9 +22,9 @@ import (
 func NewLoggingHTTPClient(debug bool, transportTimeout int) *http.Client {
 	var transport http.RoundTripper
 	defaultTransport := http.DefaultTransport.(*http.Transport).Clone()
-	defaultTransport.MaxConnsPerHost = 30000
-	defaultTransport.MaxIdleConns = 30000
-	defaultTransport.MaxIdleConnsPerHost = 30000
+	defaultTransport.MaxConnsPerHost = 3000
+	defaultTransport.MaxIdleConns = 3000
+	defaultTransport.MaxIdleConnsPerHost = 3000
 	if debug {
 		transport = &DumpTransport{
 			defaultTransport,

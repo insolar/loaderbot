@@ -68,6 +68,13 @@ type RunnerConfig struct {
 	ReportOptions *ReportOptions
 	// ClusterOptions
 	ClusterOptions *ClusterOptions
+	// Prometheus config
+	Prometheus *Prometheus
+}
+
+type Prometheus struct {
+	Enable bool
+	Port   int
 }
 
 type ClusterOptions struct {
