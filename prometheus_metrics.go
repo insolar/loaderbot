@@ -13,15 +13,15 @@ import (
 )
 
 var (
-	promGoroutines1 = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "loaderbot_goroutines_1",
-		Help: "loaderbot_goroutines_1",
-	})
-
-	promGoroutines2 = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "loaderbot_goroutines_2",
-		Help: "loaderbot_goroutines_2",
-	})
+	// promGoroutines1 = promauto.NewGauge(prometheus.GaugeOpts{
+	// 	Name: "loaderbot_goroutines_1",
+	// 	Help: "loaderbot_goroutines_1",
+	// })
+	//
+	// promGoroutines2 = promauto.NewGauge(prometheus.GaugeOpts{
+	// 	Name: "loaderbot_goroutines_2",
+	// 	Help: "loaderbot_goroutines_2",
+	// })
 
 	promTickSuccessRatio = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "loaderbot_tick_success_ratio",

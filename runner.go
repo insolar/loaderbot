@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	DefaultResultsQueueCapacity = 100_000_000
+	DefaultResultsQueueCapacity = 100_000
 	MetricsLogFile              = "requests_%s_%s_%d.csv"
 	PercsLogFile                = "percs_%s_%s_%d.csv"
 	ReportGraphFile             = "percs_%s_%s_%d.html"
@@ -145,7 +145,12 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 	}
 	if cfg.Prometheus != nil && cfg.Prometheus.Enable {
 		http.Handle("/metrics", promhttp.Handler())
-		go http.ListenAndServe(":2112", nil)
+		var port int
+		if cfg.Prometheus.Port == 0 {
+			port = 2112
+		}
+		// nolint
+		go http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 	}
 	return r
 }

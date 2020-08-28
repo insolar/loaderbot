@@ -74,6 +74,7 @@ type RunnerConfig struct {
 
 type Prometheus struct {
 	Enable bool
+	Port   int
 }
 
 type ClusterOptions struct {

@@ -18,12 +18,14 @@ func TestManualDynamicLatencyAsync(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
 		SystemMode:      OpenWorldSystem,
+		Attackers:       1000,
 		AttackerTimeout: 5,
 		StartRPS:        10,
 		// StepDurationSec: 20,
 		// StepRPS:         10,
 		TestTimeSec: 9999,
-		Prometheus:  &Prometheus{Enable: true},
+		// LogLevel: "debug",
+		Prometheus: &Prometheus{Enable: true},
 		ReportOptions: &ReportOptions{
 			CSV: true,
 			PNG: true,
@@ -241,7 +243,7 @@ func TestManualRunnerRealServiceAttack(t *testing.T) {
 }
 
 func TestPrometheus(t *testing.T) {
-	go pprofTrace("default_http", 15)
+	// go pprofTrace("default_http", 15)
 	// sockets for test
 	// sudo lsof -n -i | grep -e LISTEN -e ESTABLISHED | grep "___TestPr" | wc -l
 	r := NewRunner(&RunnerConfig{
@@ -249,11 +251,11 @@ func TestPrometheus(t *testing.T) {
 		Name:             "nginx_test",
 		SystemMode:       OpenWorldSystem,
 		Attackers:        3000,
-		AttackerTimeout:  5,
+		AttackerTimeout:  25,
 		StartRPS:         3000,
-		StepRPS:          2000,
+		StepRPS:          500,
 		StepDurationSec:  10,
-		TestTimeSec:      15,
+		TestTimeSec:      99999,
 		FailOnFirstError: true,
 		Prometheus:       &Prometheus{Enable: true},
 	}, &HTTPAttackerExample{}, nil)
