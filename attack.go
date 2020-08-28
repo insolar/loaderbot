@@ -56,6 +56,9 @@ func attack(a Attack, r *Runner) {
 				RequestLabel: r.Name,
 				Error:        errAttackDoTimedOut,
 			}
+			if err := a.Teardown(); err != nil {
+				r.L.Infof("teardown failed: %s", err)
+			}
 		case doResult = <-done:
 		}
 
@@ -69,6 +72,9 @@ func attack(a Attack, r *Runner) {
 			DoResult:    doResult,
 		}
 		requestCtxCancel()
+		if err := a.Teardown(); err != nil {
+			r.L.Infof("teardown failed: %s", err)
+		}
 		r.results <- atkResult
 	}
 }
@@ -85,25 +91,31 @@ func asyncAttack(a Attack, r *Runner) {
 		var doResult DoResult
 
 		go func() {
-			select {
-			case <-r.TimeoutCtx.Done():
-				requestCtxCancel()
-				return
-			case done <- a.Do(requestCtx):
-			}
-		}()
+			promGoroutines1.Add(1)
+			defer promGoroutines1.Sub(1)
 
-		go func() {
-			// either get the result from the attacker or from the timeout
 			select {
 			case <-r.TimeoutCtx.Done():
 				requestCtxCancel()
 				return
 			case <-requestCtx.Done():
-				doResult = DoResult{
+				done <- DoResult{
 					RequestLabel: r.Name,
 					Error:        errAttackDoTimedOut,
 				}
+			case done <- a.Do(requestCtx):
+			}
+		}()
+
+		go func() {
+			promGoroutines2.Add(1)
+			defer promGoroutines2.Sub(1)
+
+			// either get the result from the attacker or from the timeout
+			select {
+			case <-r.TimeoutCtx.Done():
+				requestCtxCancel()
+				return
 			case doResult = <-done:
 			}
 
@@ -117,6 +129,9 @@ func asyncAttack(a Attack, r *Runner) {
 				DoResult:    doResult,
 			}
 			requestCtxCancel()
+			if err := a.Teardown(); err != nil {
+				r.L.Infof("teardown failed: %s", err)
+			}
 			r.results <- atkResult
 		}()
 	}
