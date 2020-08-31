@@ -40,11 +40,10 @@ type Metrics struct {
 	// Errors is a set of unique Errors returned by the targets during the attack.
 	Errors []string `json:"Errors"`
 
-	errors       map[string]struct{}
-	errorsCount  int64
-	successRatio float64
-	success      int64
-	latencies    *quantile.Estimator
+	errors      map[string]struct{}
+	errorsCount int64
+	success     int64
+	latencies   *quantile.Estimator
 }
 
 // LatencyMetrics holds computed request latency Metrics.
@@ -122,9 +121,6 @@ func (m *Metrics) add(r AttackResult) {
 		if r.DoResult.StatusCode == 0 || (r.DoResult.StatusCode >= 200 && r.DoResult.StatusCode < 400) {
 			m.success++
 		}
-	}
-	if m.errorsCount != 0 {
-		m.successRatio = float64(m.errorsCount) / float64(m.Requests) * 100
 	}
 }
 

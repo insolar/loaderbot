@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
-	"encoding/json"
 	"log"
 	"net"
 	"sync"
 	"sync/atomic"
 
+	jsoniter "github.com/json-iterator/go"
 	"google.golang.org/grpc"
 )
 
@@ -49,8 +49,8 @@ func (r *Runner) streamResults(srv Loader_RunServer) {
 			r.L.Error(err)
 		}
 		// send last tick batch and shutdown, other nodes will be cancelled by client
-		if r.Cfg.FailOnFirstError && atomic.LoadInt64(&r.Failed) == 1 {
-			r.L.Infof("error occurred, exiting")
+		if atomic.LoadInt64(&r.Failed) == 1 {
+			r.L.Infof("runner failed, exiting")
 			r.CancelFunc()
 		}
 	}
@@ -71,7 +71,7 @@ func (s *server) Run(req *RunConfigRequest, srv Loader_RunServer) error {
 	cfg := UnmarshalConfigGob(req.Config)
 
 	r := NewRunner(&cfg, &HTTPAttackerExample{}, nil)
-	cfgJson, _ := json.MarshalIndent(cfg, "", "    ")
+	cfgJson, _ := jsoniter.MarshalIndent(cfg, "", "    ")
 	r.L.Infof("running task: %s", cfgJson)
 	r.L.Infof("busy: %s", s.policy.isBusy())
 	var ctx context.Context

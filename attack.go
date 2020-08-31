@@ -35,17 +35,10 @@ func attack(a Attack, r *Runner) {
 
 		tStart := time.Now()
 
-		done := make(chan DoResult)
+		done := make(chan DoResult, 1)
 		var doResult DoResult
-
 		go func() {
-			select {
-			case <-r.TimeoutCtx.Done():
-				requestCtxCancel()
-				return
-			case <-requestCtx.Done():
-			case done <- a.Do(requestCtx):
-			}
+			done <- a.Do(requestCtx)
 		}()
 		// either get the result from the attacker or from the timeout
 		select {
@@ -81,24 +74,16 @@ func attack(a Attack, r *Runner) {
 func asyncAttack(a Attack, r *Runner) {
 	for nextMsg := range r.next {
 		token := nextMsg
-		requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.AttackerTimeout)*time.Second)
-
-		tStart := time.Now()
-
-		done := make(chan DoResult)
-		var doResult DoResult
-
 		go func() {
-			select {
-			case <-r.TimeoutCtx.Done():
-				requestCtxCancel()
-				return
-			case <-requestCtx.Done():
-			case done <- a.Do(requestCtx):
-			}
-		}()
+			requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), time.Duration(r.Cfg.AttackerTimeout)*time.Second)
 
-		go func() {
+			tStart := time.Now()
+
+			done := make(chan DoResult, 1)
+			var doResult DoResult
+			go func() {
+				done <- a.Do(requestCtx)
+			}()
 			// either get the result from the attacker or from the timeout
 			select {
 			case <-r.TimeoutCtx.Done():

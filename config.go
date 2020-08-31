@@ -56,8 +56,8 @@ type RunnerConfig struct {
 	DumpTransport bool
 	// GoroutinesDump dumps goroutines stack for debug purposes
 	GoroutinesDump bool
-	// FailOnFirstError fails test on first error
-	FailOnFirstError bool
+	// SuccessRatio to fail when below
+	SuccessRatio float64
 	// Metadata all other data required for test setup
 	Metadata map[string]interface{}
 	// LogLevel debug|info, etc.

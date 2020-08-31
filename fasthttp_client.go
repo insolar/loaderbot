@@ -8,10 +8,11 @@
 package loaderbot
 
 import (
-	"encoding/json"
 	"log"
 	"reflect"
 	"time"
+
+	jsoniter "github.com/json-iterator/go"
 
 	"github.com/valyala/fasthttp"
 )
@@ -53,7 +54,7 @@ func UnmarshalAnyJson(d []byte, typ interface{}) (interface{}, error) {
 	t := reflect.TypeOf(typ).Elem()
 	v := reflect.New(t)
 	newP := v.Interface()
-	if err := json.Unmarshal(d, newP); err != nil {
+	if err := jsoniter.Unmarshal(d, newP); err != nil {
 		return nil, err
 	}
 	return newP, nil

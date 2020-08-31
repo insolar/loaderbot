@@ -8,7 +8,6 @@
 package loaderbot
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,15 +15,24 @@ import (
 	"net/http/httputil"
 	"strings"
 	"time"
+
+	jsoniter "github.com/json-iterator/go"
 )
 
 // NewLoggintHTTPClient creates new client with debug http
 func NewLoggingHTTPClient(debug bool, transportTimeout int) *http.Client {
 	var transport http.RoundTripper
 	defaultTransport := http.DefaultTransport.(*http.Transport).Clone()
-	defaultTransport.MaxConnsPerHost = 3000
-	defaultTransport.MaxIdleConns = 3000
-	defaultTransport.MaxIdleConnsPerHost = 3000
+	defaultTransport.MaxConnsPerHost = 30000
+	defaultTransport.MaxIdleConns = 30000
+	defaultTransport.MaxIdleConnsPerHost = 30000
+	defaultTransport.DisableCompression = true
+	defaultTransport.TLSClientConfig.InsecureSkipVerify = true
+	// defaultTransport.Dial = (&net.Dialer{
+	// 	Timeout:   30 * time.Second,
+	// 	KeepAlive: 90 * time.Second,
+	// }).Dial
+	// defaultTransport.ResponseHeaderTimeout = 10*time.Second
 	if debug {
 		transport = &DumpTransport{
 			defaultTransport,
@@ -87,24 +95,24 @@ func (d *DumpTransport) prettyPrintJsonBody(b []byte) (string, string) {
 	if len(sp) == 2 {
 		body := sp[1]
 		if strings.HasPrefix(body, "[") {
-			var objmap []*json.RawMessage
-			err := json.Unmarshal([]byte(body), &objmap)
+			var objmap []*jsoniter.RawMessage
+			err := jsoniter.Unmarshal([]byte(body), &objmap)
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			pprintBody, err = json.MarshalIndent(objmap, "", "    ")
+			pprintBody, err = jsoniter.MarshalIndent(objmap, "", "    ")
 			if err != nil {
 				log.Fatal(err)
 			}
 			return sp[0], string(pprintBody)
 		}
-		var objmap map[string]*json.RawMessage
-		err := json.Unmarshal([]byte(body), &objmap)
+		var objmap map[string]*jsoniter.RawMessage
+		err := jsoniter.Unmarshal([]byte(body), &objmap)
 		if err != nil {
 			log.Fatal(err)
 		}
-		pprintBody, err = json.MarshalIndent(objmap, "", "    ")
+		pprintBody, err = jsoniter.MarshalIndent(objmap, "", "    ")
 		if err != nil {
 			log.Fatal(err)
 		}
