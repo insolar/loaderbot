@@ -83,14 +83,14 @@ func TestCommonMultipleRunnersSuccess(t *testing.T) {
 
 func TestCommonRunnerFailOnFirstError(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
-		Name:             "test_runner",
-		Attackers:        10,
-		AttackerTimeout:  1,
-		StartRPS:         1,
-		StepDurationSec:  5,
-		StepRPS:          2,
-		TestTimeSec:      5,
-		FailOnFirstError: true,
+		Name:            "test_runner",
+		Attackers:       10,
+		AttackerTimeout: 1,
+		StartRPS:        1,
+		StepDurationSec: 5,
+		StepRPS:         2,
+		TestTimeSec:     5,
+		SuccessRatio:    1,
 		ReportOptions: &ReportOptions{
 			CSV: false,
 			PNG: false,
@@ -110,15 +110,15 @@ func TestCommonRunnerFailOnFirstError(t *testing.T) {
 
 func TestCommonRunnerHangedRequestsAfterTimeoutNoError(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
-		Name:             "test_runner",
-		SystemMode:       PrivateSystem,
-		Attackers:        1,
-		AttackerTimeout:  5,
-		StartRPS:         1,
-		StepDurationSec:  5,
-		StepRPS:          2,
-		TestTimeSec:      2,
-		FailOnFirstError: true,
+		Name:            "test_runner",
+		SystemMode:      PrivateSystem,
+		Attackers:       1,
+		AttackerTimeout: 5,
+		StartRPS:        1,
+		StepDurationSec: 5,
+		StepRPS:         2,
+		TestTimeSec:     2,
+		SuccessRatio:    1,
 		ReportOptions: &ReportOptions{
 			CSV: false,
 			PNG: false,

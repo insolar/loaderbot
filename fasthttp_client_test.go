@@ -19,9 +19,9 @@ import (
 
 // nolint
 func runTestServer() string {
-	target := "0.0.0.0:9090"
+	target := "0.0.0.0:9031"
 	gin.SetMode(gin.ReleaseMode)
-	r := gin.Default()
+	r := gin.New()
 	html := template.Must(template.New("html1").Parse(`
 <html>
 <head>

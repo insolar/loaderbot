@@ -196,7 +196,7 @@ func (m *ClusterClient) collectResults() {
 					m.Report.writePercentilesEntry(res[0], currentTickMetrics.Metrics)
 				}
 				// shutdown other Nodes if error is present in tick
-				if m.shutdownOnNodeSampleError(currentTickMetrics) {
+				if m.shutdownOnNodeSampleError(currentTickMetrics.Metrics) {
 					return
 				}
 			}
@@ -209,18 +209,14 @@ func (m *ClusterClient) collectResults() {
 	}
 }
 
-func (m *ClusterClient) shutdownOnNodeSampleError(clusterTick *ClusterTickMetrics) bool {
-	for _, sampleBatch := range clusterTick.Samples {
-		for _, s := range sampleBatch {
-			if s.DoResult.Error != "" && m.testCfg.FailOnFirstError {
-				for idx, c := range m.clients {
-					m.L.Infof("shutting down runner: %d", idx)
-					c.Shutdown()
-				}
-				m.failed = true
-				return true
-			}
+func (m *ClusterClient) shutdownOnNodeSampleError(metrics *Metrics) bool {
+	if metrics.Success < m.testCfg.SuccessRatio {
+		for idx, c := range m.clients {
+			m.L.Infof("shutting down runner: %d", idx)
+			c.Shutdown()
 		}
+		m.failed = true
+		return true
 	}
 	return false
 }

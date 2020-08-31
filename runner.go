@@ -252,9 +252,6 @@ func (r *Runner) collectResults() {
 				if res.DoResult.Error != "" {
 					r.uniqErrors[res.DoResult.Error] += 1
 					r.L.Debugf("attacker error: %s", res.DoResult.Error)
-					if r.Cfg.FailOnFirstError {
-						atomic.AddInt64(&r.Failed, 1)
-					}
 					errorForReport = res.DoResult.Error
 				}
 
@@ -286,12 +283,14 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 			r.OutResults <- currentTickMetrics.Samples
 		}
 		for _, s := range currentTickMetrics.Samples {
-			if s.DoResult.Error != "" && r.Cfg.FailOnFirstError {
-				r.CancelFunc()
-			}
 			currentTickMetrics.Metrics.add(s)
 		}
 		currentTickMetrics.Metrics.update()
+		fmt.Printf("success: [ %.2f < %.2f ]", currentTickMetrics.Metrics.Success, r.Cfg.SuccessRatio)
+		if currentTickMetrics.Metrics.Success < r.Cfg.SuccessRatio {
+			atomic.AddInt64(&r.Failed, 1)
+			r.CancelFunc()
+		}
 		r.L.Infof(
 			"step: %d, tick: %d, rate [%.4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
 			res.AttackToken.Step,

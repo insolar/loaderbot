@@ -8,9 +8,9 @@
 package loaderbot
 
 import (
-	"encoding/json"
 	"fmt"
 
+	jsoniter "github.com/json-iterator/go"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -46,7 +46,7 @@ func setupLogger(encoding string, level string) *Logger {
 	}`, level, encoding))
 
 	var cfg zap.Config
-	if err := json.Unmarshal(rawJSON, &cfg); err != nil {
+	if err := jsoniter.Unmarshal(rawJSON, &cfg); err != nil {
 		panic(err)
 	}
 	cfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder

@@ -19,7 +19,7 @@ func TestManualDynamicLatencyAsync(t *testing.T) {
 		Name:            "test_runner",
 		SystemMode:      OpenWorldSystem,
 		Attackers:       1000,
-		AttackerTimeout: 5,
+		AttackerTimeout: 15,
 		StartRPS:        10,
 		// StepDurationSec: 20,
 		// StepRPS:         10,
@@ -195,16 +195,16 @@ func TestManualRunnerNginxStaticAttackFastHTTP(t *testing.T) {
 	// go pprofTrace("fast_http", 40)
 	// go tool trace -http=':8081' ${FILENAME}
 	r := NewRunner(&RunnerConfig{
-		TargetUrl:        "http://localhost:8080/static.html",
-		Name:             "nginx_test",
-		SystemMode:       PrivateSystem,
-		Attackers:        5000,
-		AttackerTimeout:  25,
-		StartRPS:         5000,
-		StepDurationSec:  5,
-		StepRPS:          3000,
-		TestTimeSec:      40,
-		FailOnFirstError: true,
+		TargetUrl:       "http://localhost:8080/static.html",
+		Name:            "nginx_test",
+		SystemMode:      PrivateSystem,
+		Attackers:       5000,
+		AttackerTimeout: 25,
+		StartRPS:        5000,
+		StepDurationSec: 5,
+		StepRPS:         3000,
+		TestTimeSec:     40,
+		SuccessRatio:    1,
 	}, &FastHTTPAttackerExample{}, nil)
 	_, _ = r.Run(context.TODO())
 }
@@ -213,16 +213,16 @@ func TestManualRunnerNginxStaticAttackDefaultHTTP(t *testing.T) {
 	// go pprofTrace("default_http", 40)
 	// go tool trace -http=':8081' ${FILENAME}
 	r := NewRunner(&RunnerConfig{
-		TargetUrl:        "http://127.0.0.1:8080/static.html",
-		Name:             "nginx_test",
-		SystemMode:       PrivateSystem,
-		Attackers:        3000,
-		AttackerTimeout:  25,
-		StartRPS:         3000,
-		StepDurationSec:  5,
-		StepRPS:          2000,
-		TestTimeSec:      40,
-		FailOnFirstError: true,
+		TargetUrl:       "http://127.0.0.1:8080/static.html",
+		Name:            "nginx_test",
+		SystemMode:      PrivateSystem,
+		Attackers:       3000,
+		AttackerTimeout: 25,
+		StartRPS:        3000,
+		StepDurationSec: 5,
+		StepRPS:         2000,
+		TestTimeSec:     40,
+		SuccessRatio:    1,
 	}, &HTTPAttackerExample{}, nil)
 	_, _ = r.Run(context.TODO())
 }
@@ -243,21 +243,21 @@ func TestManualRunnerRealServiceAttack(t *testing.T) {
 }
 
 func TestPrometheus(t *testing.T) {
-	// go pprofTrace("default_http", 15)
+	go runTestServer()
+	time.Sleep(1 * time.Second)
+	// go pprofTrace("default_http", 30)
 	// sockets for test
 	// sudo lsof -n -i | grep -e LISTEN -e ESTABLISHED | grep "___TestPr" | wc -l
 	r := NewRunner(&RunnerConfig{
-		TargetUrl:        "http://127.0.0.1:8080/static.html",
-		Name:             "nginx_test",
-		SystemMode:       OpenWorldSystem,
-		Attackers:        3000,
-		AttackerTimeout:  25,
-		StartRPS:         3000,
-		StepRPS:          500,
-		StepDurationSec:  10,
-		TestTimeSec:      99999,
-		FailOnFirstError: true,
-		Prometheus:       &Prometheus{Enable: true},
+		TargetUrl:       "http://127.0.0.1:9031/json_body",
+		Name:            "nginx_test",
+		SystemMode:      OpenWorldSystem,
+		Attackers:       5000,
+		AttackerTimeout: 25,
+		StartRPS:        60000,
+		TestTimeSec:     120,
+		SuccessRatio:    0.95,
+		Prometheus:      &Prometheus{Enable: true},
 	}, &HTTPAttackerExample{}, nil)
 	_, _ = r.Run(context.TODO())
 }

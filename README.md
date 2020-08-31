@@ -32,7 +32,7 @@ func (a *AttackerExample) Do(_ context.Context) loaderbot.DoResult {
 	_, err := a.client.Get(a.Cfg.TargetUrl)
 	return loaderbot.DoResult{
 		RequestLabel: a.Name,
-		Error:        err,
+		Error:        err.Error(),
 	}
 }
 
@@ -86,11 +86,11 @@ type RunnerConfig struct {
 	// SystemMode PrivateSystem | OpenWorldSystem
 	// PrivateSystem:
 	// if application under test is a private system sync runner attackers will wait for response
-	// in case your system is private and you know how many sync clients can act
+	// in case your system is private and you know how many sync Nodes can act
 	// OpenWorldSystem:
 	// if application under test is an open world system async runner attackers will fire requests without waiting
-	// it creates some inaccuracy in results, so you can check latencies using service metrics to be precise,
-	// but the test will be more realistic from clients point of view
+	// it creates some inaccuracy in Results, so you can check latencies using service metrics to be precise,
+	// but the test will be more realistic from Nodes point of view
 	SystemMode SystemMode
 	// Attackers constant amount of attackers,
 	// if SystemMode is "OpenWorldSystem", attackers will be spawn on demand to meet rps
@@ -113,14 +113,20 @@ type RunnerConfig struct {
 	DumpTransport bool
 	// GoroutinesDump dumps goroutines stack for debug purposes
 	GoroutinesDump bool
-	// FailOnFirstError fails test on first error
-	FailOnFirstError bool
+	// SuccessRatio to fail when below
+	SuccessRatio float64
+	// Metadata all other data required for test setup
+	Metadata map[string]interface{}
 	// LogLevel debug|info, etc.
 	LogLevel string
 	// LogEncoding json|console
 	LogEncoding string
 	// Reporting options, csv/png/stream
 	ReportOptions *ReportOptions
+	// ClusterOptions
+	ClusterOptions *ClusterOptions
+	// Prometheus config
+	Prometheus *Prometheus
 }
 ```
 
