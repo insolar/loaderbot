@@ -157,6 +157,7 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 
 // Run runs the test
 func (r *Runner) Run(serverCtx context.Context) (float64, error) {
+	runStartTime := time.Now()
 	if r.Cfg.WaitBeforeSec > 0 {
 		r.L.Infof("waiting for %d seconds before start", r.Cfg.WaitBeforeSec)
 		time.Sleep(time.Duration(r.Cfg.WaitBeforeSec) * time.Second)
@@ -181,6 +182,7 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 	<-r.TimeoutCtx.Done()
 	r.CancelFunc()
 	r.L.Infof("runner exited")
+	r.L.Infof("total run time: %.2f sec", time.Since(runStartTime).Seconds())
 	maxRPS := r.maxRPS()
 	r.L.Infof("max rps: %.2f", maxRPS)
 	if r.Cfg.ReportOptions.CSV {
@@ -287,6 +289,7 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 		}
 		currentTickMetrics.Metrics.update()
 		if currentTickMetrics.Metrics.Success < r.Cfg.SuccessRatio {
+			r.L.Infof("success ratio threshold reached: %.4f < %.4f", currentTickMetrics.Metrics.Success, r.Cfg.SuccessRatio)
 			atomic.AddInt64(&r.Failed, 1)
 			r.CancelFunc()
 		}
