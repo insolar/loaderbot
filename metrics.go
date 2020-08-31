@@ -68,8 +68,8 @@ func NewMetrics() *Metrics {
 	return m
 }
 
-func (m Metrics) successLogEntry() int {
-	s := int(m.Success * 100.0)
+func (m Metrics) successLogEntry() float64 {
+	s := m.Success * 100.0
 	if s < 0 {
 		return 0
 	}

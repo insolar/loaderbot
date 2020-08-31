@@ -286,13 +286,12 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 			currentTickMetrics.Metrics.add(s)
 		}
 		currentTickMetrics.Metrics.update()
-		fmt.Printf("success: [ %.2f < %.2f ]", currentTickMetrics.Metrics.Success, r.Cfg.SuccessRatio)
 		if currentTickMetrics.Metrics.Success < r.Cfg.SuccessRatio {
 			atomic.AddInt64(&r.Failed, 1)
 			r.CancelFunc()
 		}
 		r.L.Infof(
-			"step: %d, tick: %d, rate [%.4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%d]",
+			"step: %d, tick: %d, rate [%.4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%.4f]",
 			res.AttackToken.Step,
 			res.AttackToken.Tick,
 			currentTickMetrics.Metrics.Rate,

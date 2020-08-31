@@ -86,7 +86,7 @@ func TestCommonRunnerFailOnFirstError(t *testing.T) {
 		Name:            "test_runner",
 		Attackers:       10,
 		AttackerTimeout: 1,
-		StartRPS:        1,
+		StartRPS:        1000,
 		StepDurationSec: 5,
 		StepRPS:         2,
 		TestTimeSec:     5,
@@ -100,10 +100,10 @@ func TestCommonRunnerFailOnFirstError(t *testing.T) {
 	cfg := ControllableConfig{
 		R:               r,
 		ControlChan:     serviceError,
-		AttackersAmount: 3,
+		AttackersAmount: 1000,
 	}
 	withControllableAttackers(cfg)
-	serviceErrorAfter(serviceError, 1*time.Nanosecond)
+	serviceErrorAfter(serviceError, 3*time.Second)
 	_, _ = r.Run(context.TODO())
 	require.Equal(t, int64(1), r.Failed)
 }
