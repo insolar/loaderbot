@@ -143,8 +143,7 @@ func TestCommonPrivateSystemRunnerIsSync(t *testing.T) {
 		StepRPS:         100,
 		TestTimeSec:     10,
 		ReportOptions: &ReportOptions{
-			CSV: false,
-			PNG: false,
+			CSV: true,
 		},
 	}, &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 1000
@@ -165,8 +164,7 @@ func TestCommonRunnerMaxRPSPrivateSystem(t *testing.T) {
 		StepRPS:         1,
 		TestTimeSec:     7,
 		ReportOptions: &ReportOptions{
-			CSV: false,
-			PNG: false,
+			CSV: true,
 		},
 	}, &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 300
@@ -186,8 +184,7 @@ func TestCommonRunnerMaxRPSOpenWorldSystem(t *testing.T) {
 		StepRPS:         100,
 		TestTimeSec:     17,
 		ReportOptions: &ReportOptions{
-			CSV: false,
-			PNG: false,
+			CSV: true,
 		},
 	}, &ControlAttackerMock{}, nil)
 	maxRPS, err := r.Run(context.TODO())
@@ -203,8 +200,7 @@ func TestCommonRunnerConstantLoad(t *testing.T) {
 		StartRPS:        30,
 		TestTimeSec:     5,
 		ReportOptions: &ReportOptions{
-			CSV: false,
-			PNG: false,
+			CSV: true,
 		},
 	}, &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 300
@@ -221,8 +217,7 @@ func TestCommonRunnerConstantLoad(t *testing.T) {
 		StartRPS:        30,
 		TestTimeSec:     5,
 		ReportOptions: &ReportOptions{
-			CSV: false,
-			PNG: false,
+			CSV: true,
 		},
 	}, &ControlAttackerMock{}, nil)
 	r2.controlled.Sleep = 300

@@ -243,7 +243,7 @@ func TestManualRunnerRealServiceAttack(t *testing.T) {
 }
 
 func TestPrometheus(t *testing.T) {
-	go runTestServer()
+	go RunTestServer("0.0.0.0:9031")
 	time.Sleep(1 * time.Second)
 	// go pprofTrace("default_http", 30)
 	// sockets for test

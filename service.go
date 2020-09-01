@@ -73,7 +73,6 @@ func (s *server) Run(req *RunConfigRequest, srv Loader_RunServer) error {
 	r := NewRunner(&cfg, &HTTPAttackerExample{}, nil)
 	cfgJson, _ := jsoniter.MarshalIndent(cfg, "", "    ")
 	r.L.Infof("running task: %s", cfgJson)
-	r.L.Infof("busy: %s", s.policy.isBusy())
 	var ctx context.Context
 	ctx, s.runnerCancelFunc = context.WithCancel(context.Background())
 	go func() {

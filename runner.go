@@ -9,10 +9,14 @@ package loaderbot
 
 import (
 	"context"
+	"encoding/csv"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"runtime"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -183,13 +187,14 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 	r.CancelFunc()
 	r.L.Infof("runner exited")
 	r.L.Infof("total run time: %.2f sec", time.Since(runStartTime).Seconds())
-	maxRPS := r.maxRPS()
-	r.L.Infof("max rps: %.2f", maxRPS)
 	if r.Cfg.ReportOptions.CSV {
 		r.Report.flushLogs()
 		r.Report.plot()
+		maxRPS := r.maxRPS()
+		r.L.Infof("max rps: %.2f", maxRPS)
+		return maxRPS, nil
 	}
-	return maxRPS, nil
+	return 0, nil
 }
 
 // schedule creates schedule plan for a test
@@ -312,6 +317,7 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 			r.PromReporter.reportTick(currentTickMetrics)
 		}
 		currentTickMetrics.Reported = true
+		delete(r.receivedTickMetrics, res.AttackToken.Tick)
 	}
 }
 
@@ -325,11 +331,19 @@ func (r *Runner) printErrors() {
 
 // maxRPS calculate max rps for test among ticks
 func (r *Runner) maxRPS() float64 {
-	r.receivedTickMetricsMu.Lock()
-	defer r.receivedTickMetricsMu.Unlock()
-	rates := make([]float64, 0)
-	for _, m := range r.receivedTickMetrics {
-		rates = append(rates, m.Metrics.Rate)
+	f, err := os.Open(r.Report.percLogFilename)
+	if err != nil {
+		log.Fatal(err)
 	}
-	return MaxRPS(rates)
+	rpsSlice := make([]float64, 0)
+	csvFile := csv.NewReader(f)
+	for {
+		line, err := csvFile.Read()
+		if err == io.EOF {
+			break
+		}
+		rps, _ := strconv.ParseFloat(line[2], 64)
+		rpsSlice = append(rpsSlice, rps)
+	}
+	return MaxRPS(rpsSlice)
 }
