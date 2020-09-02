@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/google/gops/agent"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/ratelimit"
 )
@@ -162,6 +163,10 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 
 // Run runs the test
 func (r *Runner) Run(serverCtx context.Context) (float64, error) {
+	_ = agent.Listen(agent.Options{
+		Addr: "0.0.0.0:10500",
+	})
+
 	runStartTime := time.Now()
 	if r.Cfg.WaitBeforeSec > 0 {
 		r.L.Infof("waiting for %d seconds before start", r.Cfg.WaitBeforeSec)
@@ -185,6 +190,7 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 	r.schedule()
 	r.collectResults()
 	<-r.TimeoutCtx.Done()
+	r.wg.Wait()
 	r.L.Infof("shutting down")
 	r.L.Infof("total run time: %.2f sec", time.Since(runStartTime).Seconds())
 	if r.Cfg.ReportOptions.CSV {
@@ -241,7 +247,9 @@ func (r *Runner) schedule() {
 
 // collectResults collects attackers Results and writes them to one of report options
 func (r *Runner) collectResults() {
+	r.wg.Add(1)
 	go func() {
+		defer r.wg.Done()
 		var (
 			totalRequestsStored = 0
 		)

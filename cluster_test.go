@@ -1,3 +1,7 @@
+// +build !race
+// by default we are using single HTTP client, so in cluster mode client is one per vm, in tests for multiple nodes that will race
+// otherwise, when creating multiple transports default client will leak goroutines!
+
 package loaderbot
 
 import (

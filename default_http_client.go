@@ -22,23 +22,17 @@ import (
 // NewLoggintHTTPClient creates new client with debug http
 func NewLoggingHTTPClient(debug bool, transportTimeout int) *http.Client {
 	var transport http.RoundTripper
-	defaultTransport := http.DefaultTransport.(*http.Transport).Clone()
-	defaultTransport.MaxConnsPerHost = 30000
-	defaultTransport.MaxIdleConns = 30000
-	defaultTransport.MaxIdleConnsPerHost = 30000
-	defaultTransport.DisableCompression = true
-	defaultTransport.TLSClientConfig.InsecureSkipVerify = true
-	// defaultTransport.Dial = (&net.Dialer{
-	// 	Timeout:   30 * time.Second,
-	// 	KeepAlive: 90 * time.Second,
-	// }).Dial
-	// defaultTransport.ResponseHeaderTimeout = 10*time.Second
+	http.DefaultTransport.(*http.Transport).MaxConnsPerHost = 65535
+	http.DefaultTransport.(*http.Transport).MaxIdleConns = 65535
+	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 65535
+	http.DefaultTransport.(*http.Transport).DisableCompression = true
+	http.DefaultTransport.(*http.Transport).ResponseHeaderTimeout = 10 * time.Second
 	if debug {
 		transport = &DumpTransport{
-			defaultTransport,
+			http.DefaultTransport,
 		}
 	} else {
-		transport = defaultTransport
+		transport = http.DefaultTransport
 	}
 	cookieJar, _ := cookiejar.New(nil)
 	return &http.Client{

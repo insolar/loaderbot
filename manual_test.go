@@ -257,7 +257,7 @@ func TestPrometheus(t *testing.T) {
 		SystemMode:      OpenWorldSystem,
 		Attackers:       5000,
 		AttackerTimeout: 25,
-		StartRPS:        60000,
+		StartRPS:        10,
 		TestTimeSec:     120,
 		SuccessRatio:    0.95,
 		Prometheus:      &Prometheus{Enable: true},

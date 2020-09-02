@@ -23,8 +23,10 @@ var (
 )
 
 func (r *Runner) handleShutdownSignal() {
+	r.wg.Add(1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
+		defer r.wg.Done()
 		select {
 		case <-r.TimeoutCtx.Done():
 			return

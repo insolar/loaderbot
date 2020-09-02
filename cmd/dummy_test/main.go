@@ -17,20 +17,19 @@ import (
 
 func main() {
 	// go loaderbot.RunTestServer("0.0.0.0:9031")
+	// nolint
 	target := os.Getenv("TARGET")
-	// target = "http://localhost:9031"
+	// target = "http://localhost:9031/json_body"
 	for i := 0; i < 10; i++ {
 		r := loaderbot.NewRunner(&loaderbot.RunnerConfig{
 			TargetUrl:       target,
 			Name:            fmt.Sprintf("dummy_test_%d", i),
 			SystemMode:      loaderbot.PrivateSystem,
-			Attackers:       10,
-			AttackerTimeout: 2,
-			StartRPS:        10,
-			// StepDurationSec: 10,
-			// StepRPS:         5000,
-			TestTimeSec:  20,
-			SuccessRatio: 0.95,
+			Attackers:       30000,
+			AttackerTimeout: 25,
+			StartRPS:        30000,
+			TestTimeSec:     5,
+			SuccessRatio:    0.95,
 			// Prometheus:   &loaderbot.Prometheus{Enable: true},
 		}, &loaderbot.HTTPAttackerExample{}, nil)
 		_, _ = r.Run(context.TODO())
