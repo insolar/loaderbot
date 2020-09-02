@@ -9,25 +9,30 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/insolar/loaderbot"
 )
 
 func main() {
+	// go loaderbot.RunTestServer("0.0.0.0:9031")
 	target := os.Getenv("TARGET")
-	r := loaderbot.NewRunner(&loaderbot.RunnerConfig{
-		TargetUrl:       target,
-		Name:            "dummy_test",
-		SystemMode:      loaderbot.PrivateSystem,
-		Attackers:       5000,
-		AttackerTimeout: 25,
-		StartRPS:        30000,
-		// StepDurationSec: 10,
-		// StepRPS:         1000,
-		TestTimeSec:  3600,
-		SuccessRatio: 0.95,
-		Prometheus:   &loaderbot.Prometheus{Enable: true},
-	}, &loaderbot.HTTPAttackerExample{}, nil)
-	_, _ = r.Run(context.TODO())
+	// target = "http://localhost:9031"
+	for i := 0; i < 10; i++ {
+		r := loaderbot.NewRunner(&loaderbot.RunnerConfig{
+			TargetUrl:       target,
+			Name:            fmt.Sprintf("dummy_test_%d", i),
+			SystemMode:      loaderbot.PrivateSystem,
+			Attackers:       10,
+			AttackerTimeout: 2,
+			StartRPS:        10,
+			// StepDurationSec: 10,
+			// StepRPS:         5000,
+			TestTimeSec:  20,
+			SuccessRatio: 0.95,
+			// Prometheus:   &loaderbot.Prometheus{Enable: true},
+		}, &loaderbot.HTTPAttackerExample{}, nil)
+		_, _ = r.Run(context.TODO())
+	}
 }

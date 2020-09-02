@@ -10,6 +10,7 @@ package loaderbot
 import (
 	"html/template"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -29,6 +30,7 @@ func RunTestServer(target string) string {
 `))
 	r.SetHTMLTemplate(html)
 	r.GET("/json_body", func(c *gin.Context) {
+		time.Sleep(100 * time.Millisecond)
 		c.JSON(http.StatusOK, gin.H{
 			"message": "pong",
 		})

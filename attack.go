@@ -38,7 +38,13 @@ func attack(a Attack, r *Runner) {
 		done := make(chan DoResult, 1)
 		var doResult DoResult
 		go func() {
-			done <- a.Do(requestCtx)
+			select {
+			case <-r.TimeoutCtx.Done():
+				requestCtxCancel()
+				return
+			case <-requestCtx.Done():
+			case done <- a.Do(requestCtx):
+			}
 		}()
 		// either get the result from the attacker or from the timeout
 		select {
@@ -82,7 +88,13 @@ func asyncAttack(a Attack, r *Runner) {
 			done := make(chan DoResult, 1)
 			var doResult DoResult
 			go func() {
-				done <- a.Do(requestCtx)
+				select {
+				case <-r.TimeoutCtx.Done():
+					requestCtxCancel()
+					return
+				case <-requestCtx.Done():
+				case done <- a.Do(requestCtx):
+				}
 			}()
 			// either get the result from the attacker or from the timeout
 			select {

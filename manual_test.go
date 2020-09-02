@@ -15,24 +15,27 @@ import (
 )
 
 func TestManualDynamicLatencyAsync(t *testing.T) {
-	r := NewRunner(&RunnerConfig{
-		Name:            "test_runner",
-		SystemMode:      OpenWorldSystem,
-		Attackers:       1000,
-		AttackerTimeout: 15,
-		StartRPS:        10,
-		// StepDurationSec: 20,
-		// StepRPS:         10,
-		TestTimeSec: 9999,
-		// LogLevel: "debug",
-		Prometheus: &Prometheus{Enable: true},
-		ReportOptions: &ReportOptions{
-			CSV: true,
-			PNG: true,
-		},
-	}, &ControlAttackerMock{}, nil)
-	r.controlled.Sleep = 10000
-	_, _ = r.Run(context.TODO())
+	for i := 0; i < 10; i++ {
+		r := NewRunner(&RunnerConfig{
+			Name:            "test_runner",
+			SystemMode:      PrivateSystem,
+			Attackers:       1000,
+			AttackerTimeout: 5,
+			StartRPS:        10,
+			// StepDurationSec: 20,
+			// StepRPS:         10,
+			TestTimeSec:  20,
+			SuccessRatio: 1,
+			// LogLevel: "debug",
+			// Prometheus: &Prometheus{Enable: true},
+			ReportOptions: &ReportOptions{
+				CSV: true,
+				PNG: true,
+			},
+		}, &ControlAttackerMock{}, nil)
+		r.controlled.Sleep = 10000
+		_, _ = r.Run(context.TODO())
+	}
 }
 
 func TestManualDynamicLatencySync(t *testing.T) {

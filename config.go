@@ -125,6 +125,9 @@ func (c *RunnerConfig) DefaultCfgValues() {
 			PNG: true,
 		}
 	}
+	if c.Prometheus != nil && c.Prometheus.Port == 0 {
+		c.Prometheus.Port = 2112
+	}
 }
 
 // Validate checks all settings and returns a list of strings with problems.

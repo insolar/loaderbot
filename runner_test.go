@@ -112,7 +112,7 @@ func TestCommonRunnerHangedRequestsAfterTimeoutNoError(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
 		SystemMode:      PrivateSystem,
-		Attackers:       1,
+		Attackers:       10,
 		AttackerTimeout: 5,
 		StartRPS:        1,
 		StepDurationSec: 5,
@@ -120,8 +120,7 @@ func TestCommonRunnerHangedRequestsAfterTimeoutNoError(t *testing.T) {
 		TestTimeSec:     2,
 		SuccessRatio:    1,
 		ReportOptions: &ReportOptions{
-			CSV: false,
-			PNG: false,
+			CSV: true,
 		},
 	}, &ControlAttackerMock{}, nil)
 	// request still hangs when the test ends, but it's not an error because test has ended
@@ -160,8 +159,6 @@ func TestCommonRunnerMaxRPSPrivateSystem(t *testing.T) {
 		Attackers:       20,
 		AttackerTimeout: 1,
 		StartRPS:        rps,
-		StepDurationSec: 5,
-		StepRPS:         1,
 		TestTimeSec:     7,
 		ReportOptions: &ReportOptions{
 			CSV: true,

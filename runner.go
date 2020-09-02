@@ -111,6 +111,7 @@ type Runner struct {
 	HTTPClient     *http.Client
 	FastHTTPClient *FastHTTPClient
 	PromReporter   *PromReporter
+	wg             *sync.WaitGroup
 	L              *Logger
 }
 
@@ -135,6 +136,7 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		TestData:              data,
 		HTTPClient:            NewLoggingHTTPClient(cfg.DumpTransport, cfg.AttackerTimeout),
 		FastHTTPClient:        NewLoggingFastHTTPClient(cfg.DumpTransport),
+		wg:                    &sync.WaitGroup{},
 		L:                     NewLogger(cfg).With("runner", cfg.Name),
 	}
 	for i := 0; i < cfg.Attackers; i++ {
@@ -149,12 +151,11 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 	}
 	if cfg.Prometheus != nil && cfg.Prometheus.Enable {
 		http.Handle("/metrics", promhttp.Handler())
-		var port int
-		if cfg.Prometheus.Port == 0 {
-			port = 2112
-		}
-		// nolint
-		go http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+		go func() {
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.Prometheus.Port), nil); err != nil {
+				r.L.Error(err)
+			}
+		}()
 	}
 	return r
 }
@@ -184,8 +185,7 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 	r.schedule()
 	r.collectResults()
 	<-r.TimeoutCtx.Done()
-	r.CancelFunc()
-	r.L.Infof("runner exited")
+	r.L.Infof("shutting down")
 	r.L.Infof("total run time: %.2f sec", time.Since(runStartTime).Seconds())
 	if r.Cfg.ReportOptions.CSV {
 		r.Report.flushLogs()
@@ -194,6 +194,7 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 		r.L.Infof("max rps: %.2f", maxRPS)
 		return maxRPS, nil
 	}
+	r.L.Infof("runner exited")
 	return 0, nil
 }
 
