@@ -28,7 +28,6 @@ func TestCommonRenderPercs(t *testing.T) {
 		log.Fatal(err)
 	}
 	RenderEChart(data, "responses.html")
-	html2png("responses.html")
 }
 
 func TestCommonRenderErr(t *testing.T) {

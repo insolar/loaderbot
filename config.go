@@ -83,6 +83,10 @@ type ClusterOptions struct {
 
 // ReportOptions reporting options
 type ReportOptions struct {
+	// Report html directory
+	HTMLDir string
+	// Report csv directory
+	CSVDir string
 	// CSV dumps requests/responses data
 	CSV bool
 	// PNG creates percentiles graph
@@ -121,9 +125,17 @@ func (c *RunnerConfig) DefaultCfgValues() {
 	}
 	if c.ReportOptions == nil {
 		c.ReportOptions = &ReportOptions{
-			CSV: true,
-			PNG: true,
+			CSVDir:  "results_csv",
+			HTMLDir: "results_html",
+			CSV:     true,
+			PNG:     true,
 		}
+	}
+	if c.ReportOptions.CSVDir == "" {
+		c.ReportOptions.CSVDir = "results_csv"
+	}
+	if c.ReportOptions.HTMLDir == "" {
+		c.ReportOptions.HTMLDir = "results_html"
 	}
 	if c.Prometheus != nil && c.Prometheus.Port == 0 {
 		c.Prometheus.Port = 2112

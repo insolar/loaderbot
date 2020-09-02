@@ -10,6 +10,8 @@ package loaderbot
 import (
 	"encoding/csv"
 	"fmt"
+	"os"
+	"path"
 	"strconv"
 	"time"
 
@@ -19,33 +21,43 @@ import (
 type Report struct {
 	runId               string
 	runName             string
-	metricsLogFilename  string
+	requestsLogFilename string
 	percsReportFilename string
 	percLogFilename     string
-	metricsLogFile      *csv.Writer
+	requestsLogFile     *csv.Writer
 	percLogFile         *csv.Writer
 	reportOptions       *ReportOptions
 	L                   *Logger
 }
 
 func NewReport(cfg *RunnerConfig) *Report {
+	_ = os.Mkdir(cfg.ReportOptions.CSVDir, os.ModePerm)
+	_ = os.Mkdir(cfg.ReportOptions.HTMLDir, os.ModePerm)
+
 	tn := time.Now().Unix()
 	runId := uuid.New().String()
-	metricsLogFilename := fmt.Sprintf(MetricsLogFile, cfg.Name, runId, tn)
-	percsReportFilename := fmt.Sprintf(ReportGraphFile, cfg.Name, runId, tn)
+
+	requestsLogFilename := fmt.Sprintf(MetricsLogFile, cfg.Name, runId, tn)
+	requestsLogFilename = path.Join(cfg.ReportOptions.CSVDir, requestsLogFilename)
+
 	percLogFilename := fmt.Sprintf(PercsLogFile, cfg.Name, runId, tn)
+	percLogFilename = path.Join(cfg.ReportOptions.CSVDir, percLogFilename)
+
+	percsReportFilename := fmt.Sprintf(ReportGraphFile, cfg.Name, runId, tn)
+	percsReportFilename = path.Join(cfg.ReportOptions.HTMLDir, percsReportFilename)
+
 	r := &Report{
 		runId:               runId,
 		runName:             cfg.Name,
-		metricsLogFilename:  metricsLogFilename,
+		requestsLogFilename: requestsLogFilename,
 		percsReportFilename: percsReportFilename,
 		percLogFilename:     percLogFilename,
-		metricsLogFile:      csv.NewWriter(CreateFileOrReplace(metricsLogFilename)),
+		requestsLogFile:     csv.NewWriter(CreateFileOrReplace(requestsLogFilename)),
 		percLogFile:         csv.NewWriter(CreateFileOrReplace(percLogFilename)),
 		reportOptions:       cfg.ReportOptions,
 		L:                   NewLogger(cfg).With("report", cfg.Name),
 	}
-	_ = r.metricsLogFile.Write(ResultsCsvHeader)
+	_ = r.requestsLogFile.Write(ResultsCsvHeader)
 	_ = r.percLogFile.Write(PercsCsvHeader)
 	return r
 }
@@ -59,17 +71,16 @@ func (r *Report) plot() {
 			return
 		}
 		RenderEChart(chart, r.percsReportFilename)
-		// html2png(r.percsReportFilename)
 	}
 }
 
 func (r *Report) flushLogs() {
 	r.percLogFile.Flush()
-	r.metricsLogFile.Flush()
+	r.requestsLogFile.Flush()
 }
 
 func (r *Report) writeResultEntry(res AttackResult, errorMsg string) {
-	_ = r.metricsLogFile.Write([]string{
+	_ = r.requestsLogFile.Write([]string{
 		res.DoResult.RequestLabel,
 		strconv.Itoa(int(res.Begin.UnixNano())),
 		strconv.Itoa(int(res.End.UnixNano())),

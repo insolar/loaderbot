@@ -235,8 +235,11 @@ func TestCommonReportMetrics(t *testing.T) {
 		StepRPS:         2,
 		TestTimeSec:     10,
 		ReportOptions: &ReportOptions{
-			CSV: true,
-			PNG: true,
+			HTMLDir: "test_html",
+			CSVDir:  "test_csv",
+			CSV:     true,
+			PNG:     true,
+			Stream:  false,
 		},
 	}, &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 500

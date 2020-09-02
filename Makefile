@@ -26,4 +26,4 @@ test:  ## run all tests
 
 .PHONY: clean
 clean:  ## remove all report and debug data
-	rm -rf *.csv *.png *.html *.out
+	rm -rf results_csv results_html
