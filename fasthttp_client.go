@@ -27,8 +27,11 @@ func NewLoggingFastHTTPClient(debug bool) *FastHTTPClient {
 	return &FastHTTPClient{
 		debug,
 		fasthttp.Client{
-			MaxConnsPerHost:           30000,
-			MaxIdleConnDuration:       5 * time.Second,
+			// Dial: func(addr string) (net.Conn, error) {
+			// 	return fasthttp.DialTimeout(addr, 1*time.Second)
+			// },
+			MaxConnsPerHost:           65535,
+			MaxIdleConnDuration:       90 * time.Second,
 			MaxIdemponentCallAttempts: 0,
 		},
 	}

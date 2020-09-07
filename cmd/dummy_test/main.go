@@ -24,14 +24,16 @@ func main() {
 		r := loaderbot.NewRunner(&loaderbot.RunnerConfig{
 			TargetUrl:       target,
 			Name:            fmt.Sprintf("dummy_test_%d", i),
-			SystemMode:      loaderbot.PrivateSystem,
-			Attackers:       30000,
+			SystemMode:      loaderbot.OpenWorldSystem,
+			Attackers:       20000,
 			AttackerTimeout: 25,
-			StartRPS:        30000,
-			TestTimeSec:     5,
+			StartRPS:        10000,
+			StepDurationSec: 5,
+			StepRPS:         5000,
+			TestTimeSec:     60,
 			SuccessRatio:    0.95,
 			// Prometheus:   &loaderbot.Prometheus{Enable: true},
-		}, &loaderbot.HTTPAttackerExample{}, nil)
+		}, &loaderbot.FastHTTPAttackerExample{}, nil)
 		_, _ = r.Run(context.TODO())
 	}
 }

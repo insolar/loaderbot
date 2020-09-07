@@ -24,8 +24,8 @@ func TestCommonClusterClient(t *testing.T) {
 	c := NewClusterClient(&RunnerConfig{
 		TargetUrl:       "https://clients5.google.com/pagead/drt/dn/",
 		Name:            "test_runner",
-		SystemMode:      OpenWorldSystem,
-		Attackers:       1,
+		SystemMode:      PrivateSystem,
+		Attackers:       100,
 		AttackerTimeout: 1,
 		StartRPS:        100,
 		StepDurationSec: 5,

@@ -12,20 +12,21 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 func TestManualDynamicLatencyAsync(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		r := NewRunner(&RunnerConfig{
 			Name:            "test_runner",
-			SystemMode:      PrivateSystem,
+			SystemMode:      OpenWorldSystem,
 			Attackers:       1000,
 			AttackerTimeout: 5,
 			StartRPS:        10,
-			// StepDurationSec: 20,
-			// StepRPS:         10,
-			TestTimeSec:  20,
-			SuccessRatio: 1,
+			TestTimeSec:     20,
+			SuccessRatio:    1,
 			// LogLevel: "debug",
 			// Prometheus: &Prometheus{Enable: true},
 			ReportOptions: &ReportOptions{
@@ -33,7 +34,32 @@ func TestManualDynamicLatencyAsync(t *testing.T) {
 				PNG: true,
 			},
 		}, &ControlAttackerMock{}, nil)
-		r.controlled.Sleep = 10000
+		r.controlled.Sleep = 3000
+		_, _ = r.Run(context.TODO())
+	}
+}
+
+func TestManualDynamicLatencyAsyncHTTP(t *testing.T) {
+	srv := RunTestServer("0.0.0.0:9031", 3000*time.Millisecond)
+	// nolint
+	defer srv.Shutdown(context.Background())
+	for i := 0; i < 10; i++ {
+		r := NewRunner(&RunnerConfig{
+			TargetUrl:       "http://0.0.0.0:9031/json_body",
+			Name:            "test_runner",
+			SystemMode:      OpenWorldSystem,
+			AttackerTimeout: 5,
+			StartRPS:        1000,
+			StepDurationSec: 5,
+			StepRPS:         1000,
+			TestTimeSec:     20,
+			SuccessRatio:    1,
+
+			ReportOptions: &ReportOptions{
+				CSV: true,
+				PNG: true,
+			},
+		}, &HTTPAttackerExample{}, nil)
 		_, _ = r.Run(context.TODO())
 	}
 }
@@ -78,9 +104,6 @@ func TestManualAllJitter(t *testing.T) {
 		ReportOptions: &ReportOptions{
 			CSV: true,
 			PNG: true,
-		},
-		Prometheus: &Prometheus{
-			Enable: true,
 		},
 	}, &ControlAttackerMock{}, nil)
 	atomic.AddInt64(&r.controlled.Sleep, 10000)
@@ -245,8 +268,10 @@ func TestManualRunnerRealServiceAttack(t *testing.T) {
 	_, _ = r.Run(context.TODO())
 }
 
-func TestPrometheus(t *testing.T) {
-	go RunTestServer("0.0.0.0:9031")
+func TestManualPrometheus(t *testing.T) {
+	srv := RunTestServer("0.0.0.0:9031", 50*time.Millisecond)
+	// nolint
+	defer srv.Shutdown(context.Background())
 	time.Sleep(1 * time.Second)
 	// go pprofTrace("default_http", 30)
 	// sockets for test
@@ -263,4 +288,45 @@ func TestPrometheus(t *testing.T) {
 		Prometheus:      &Prometheus{Enable: true},
 	}, &HTTPAttackerExample{}, nil)
 	_, _ = r.Run(context.TODO())
+}
+
+func TestManualHTTPLeak(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	srv := RunTestServer("0.0.0.0:9031", 3000*time.Millisecond)
+	// nolint
+	defer srv.Shutdown(context.Background())
+	cfg := &RunnerConfig{
+		TargetUrl:       "http://0.0.0.0:9031/json_body",
+		Name:            "test_runner",
+		Attackers:       10,
+		AttackerTimeout: 5,
+		StartRPS:        10,
+		TestTimeSec:     4,
+	}
+	{
+		cfg.SystemMode = PrivateSystem
+		r := NewRunner(cfg, &HTTPAttackerExample{}, nil)
+		_, err := r.Run(context.TODO())
+		require.NoError(t, err)
+	}
+	{
+		cfg.SystemMode = PrivateSystem
+		cfg.AttackerTimeout = 2
+		r := NewRunner(cfg, &HTTPAttackerExample{}, nil)
+		_, err := r.Run(context.TODO())
+		require.NoError(t, err)
+	}
+	{
+		cfg.SystemMode = OpenWorldSystem
+		r := NewRunner(cfg, &HTTPAttackerExample{}, nil)
+		_, err := r.Run(context.TODO())
+		require.NoError(t, err)
+	}
+	{
+		cfg.SystemMode = OpenWorldSystem
+		cfg.AttackerTimeout = 2
+		r := NewRunner(cfg, &HTTPAttackerExample{}, nil)
+		_, err := r.Run(context.TODO())
+		require.NoError(t, err)
+	}
 }

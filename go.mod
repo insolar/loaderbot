@@ -20,11 +20,12 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/valyala/fasthttp v1.16.0
 	github.com/wcharczuk/go-chart v2.0.2-0.20191206192251-962b9abdec2b+incompatible
+	go.uber.org/goleak v1.1.10
 	go.uber.org/ratelimit v0.1.0
 	go.uber.org/zap v1.10.0
 	golang.org/x/image v0.0.0-20200618115811-c13761719519 // indirect
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
-	golang.org/x/tools v0.0.0-20200723000907-a7c6fd066f6d // indirect
+	golang.org/x/tools v0.0.0-20200904185747-39188db58858 // indirect
 	google.golang.org/grpc v1.31.0
 	google.golang.org/protobuf v1.25.0
 )

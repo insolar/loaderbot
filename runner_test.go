@@ -196,9 +196,6 @@ func TestCommonRunnerConstantLoad(t *testing.T) {
 		AttackerTimeout: 1,
 		StartRPS:        30,
 		TestTimeSec:     5,
-		ReportOptions: &ReportOptions{
-			CSV: true,
-		},
 	}, &ControlAttackerMock{}, nil)
 	r.controlled.Sleep = 300
 	maxRPS, err := r.Run(context.TODO())
@@ -245,4 +242,26 @@ func TestCommonReportMetrics(t *testing.T) {
 	r.controlled.Sleep = 500
 	_, err := r.Run(context.TODO())
 	require.NoError(t, err)
+}
+
+func TestCommonGracefulPrometheusMultipleRunners(t *testing.T) {
+	cfg := &RunnerConfig{
+		Name:            "test_runner",
+		SystemMode:      PrivateSystem,
+		Attackers:       10,
+		AttackerTimeout: 1,
+		StartRPS:        8,
+		StepDurationSec: 5,
+		StepRPS:         2,
+		TestTimeSec:     2,
+		Prometheus: &Prometheus{
+			Enable: true,
+		},
+	}
+	r := NewRunner(cfg, &ControlAttackerMock{}, nil)
+	_, err := r.Run(context.TODO())
+	require.NoError(t, err)
+	r2 := NewRunner(cfg, &ControlAttackerMock{}, nil)
+	_, err2 := r2.Run(context.TODO())
+	require.NoError(t, err2)
 }

@@ -34,6 +34,7 @@ const (
 )
 
 var (
+	promOnce         = &sync.Once{}
 	ResultsCsvHeader = []string{"RequestLabel", "BeginTimeNano", "EndTimeNano", "Elapsed", "StatusCode", "Error"}
 	PercsCsvHeader   = []string{"RequestLabel", "Tick", "RPS", "P50", "P95", "P99"}
 )
@@ -151,12 +152,14 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		r.Report = NewReport(r.Cfg)
 	}
 	if cfg.Prometheus != nil && cfg.Prometheus.Enable {
-		http.Handle("/metrics", promhttp.Handler())
-		go func() {
-			if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.Prometheus.Port), nil); err != nil {
-				r.L.Error(err)
-			}
-		}()
+		promOnce.Do(func() {
+			go func() {
+				http.Handle("/metrics", promhttp.Handler())
+				if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.Prometheus.Port), nil); err != nil {
+					r.L.Error(err)
+				}
+			}()
+		})
 	}
 	return r
 }
@@ -166,6 +169,9 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 	_ = agent.Listen(agent.Options{
 		Addr: "0.0.0.0:10500",
 	})
+
+	// r.results = make(chan AttackResult, DefaultResultsQueueCapacity)
+	// r.OutResults = make(chan []AttackResult, DefaultResultsQueueCapacity)
 
 	runStartTime := time.Now()
 	if r.Cfg.WaitBeforeSec > 0 {
@@ -193,15 +199,16 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 	r.wg.Wait()
 	r.L.Infof("shutting down")
 	r.L.Infof("total run time: %.2f sec", time.Since(runStartTime).Seconds())
+	var maxRPS float64
 	if r.Cfg.ReportOptions.CSV {
 		r.Report.flushLogs()
 		r.Report.plot()
-		maxRPS := r.maxRPS()
+		maxRPS = r.maxRPS()
 		r.L.Infof("max rps: %.2f", maxRPS)
-		return maxRPS, nil
 	}
+	r.HTTPClient.CloseIdleConnections()
 	r.L.Infof("runner exited")
-	return 0, nil
+	return maxRPS, nil
 }
 
 // schedule creates schedule plan for a test
@@ -222,10 +229,15 @@ func (r *Runner) schedule() {
 				return
 			default:
 				r.rl.Take()
-				r.next <- attackToken{
+				// either schedule attack and count requests, or retry in limiter pace
+				select {
+				case r.next <- attackToken{
 					TargetRPS: r.targetRPS,
 					Step:      currentStep,
 					Tick:      currentTick,
+				}:
+				default:
+					continue
 				}
 				totalRequestsFired++
 				requestsFiredInTick++
