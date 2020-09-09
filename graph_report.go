@@ -143,6 +143,7 @@ func PercsChart(path string, title string) (*charts.Line, error) {
 	}
 	line := charts.NewLine()
 	line.SetGlobalOptions(
+		charts.DataZoomOpts{},
 		charts.TitleOpts{Title: title},
 		charts.XAxisOpts{Name: "Time (sec)"},
 		charts.YAxisOpts{Name: "Response (ms)"},
