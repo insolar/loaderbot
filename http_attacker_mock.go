@@ -14,6 +14,10 @@ import (
 	"net/http"
 )
 
+func init() {
+	RegisterAttacker("HTTPAttackerExample", &HTTPAttackerExample{})
+}
+
 type HTTPAttackerExample struct {
 	*Runner
 }

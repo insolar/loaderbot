@@ -70,7 +70,7 @@ func (s *server) Run(req *RunConfigRequest, srv Loader_RunServer) error {
 	s.policy.setBusy(true)
 	cfg := UnmarshalConfigGob(req.Config)
 
-	r := NewRunner(&cfg, &HTTPAttackerExample{}, nil)
+	r := NewRunner(&cfg, AttackerFromString(cfg.InstanceType), nil)
 	cfgJson, _ := jsoniter.MarshalIndent(cfg, "", "    ")
 	r.L.Infof("running task: %s", cfgJson)
 	var ctx context.Context

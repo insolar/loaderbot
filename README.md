@@ -3,16 +3,22 @@ Minimalistic load tool
 
 #### How to use
 
-Implement attacker
+Implement attacker, example with one client sharing connections
 ```go
 package attackers
 
 import (
 	"context"
 	"net/http"
+    "io"
+    "io/ioutil"
 
 	"github.com/insolar/loaderbot"
 )
+
+func init() {
+	loaderbot.RegisterAttacker("HTTPAttackerExample", &AttackerExample{})
+}
 
 type AttackerExample struct {
 	*loaderbot.Runner
@@ -28,16 +34,52 @@ func (a *AttackerExample) Setup(c loaderbot.RunnerConfig) error {
 	return nil
 }
 
-func (a *AttackerExample) Do(_ context.Context) loaderbot.DoResult {
-	_, err := a.client.Get(a.Cfg.TargetUrl)
-	return loaderbot.DoResult{
-		RequestLabel: a.Name,
-		Error:        err.Error(),
-	}
+func (a *AttackerExample) Do(ctx context.Context) loaderbot.DoResult {
+	req, _ := http.NewRequestWithContext(ctx, "GET", a.Cfg.TargetUrl, nil)
+    	res, err := a.HTTPClient.Do(req)
+    	if res != nil {
+    		if _, err = io.Copy(ioutil.Discard, res.Body); err != nil {
+    			return loaderbot.DoResult{
+    				RequestLabel: a.Name,
+    				Error:        err.Error(),
+    			}
+    		}
+    		defer res.Body.Close()
+    	}
+    	if err != nil {
+    		return loaderbot.DoResult{
+    			RequestLabel: a.Name,
+    			Error:        err.Error(),
+    		}
+    	}
+    	return loaderbot.DoResult{RequestLabel: a.Name}
 }
 
 func (a *AttackerExample) Teardown() error {
 	return nil
+}
+```
+
+Alternatively Fasthttp can be used in Do():
+```go
+func (a *FastHTTPAttackerExample) Do(_ context.Context) DoResult {
+	req := fasthttp.AcquireRequest()
+	req.SetRequestURI(a.Cfg.TargetUrl)
+	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseRequest(req)
+	defer fasthttp.ReleaseResponse(resp)
+	err := a.FastHTTPClient.Do(req, resp)
+	if resp.StatusCode() >= 400 {
+		return DoResult{
+			Error: "request failed",
+		}
+	}
+	if err != nil {
+		return DoResult{
+			Error: err.Error(),
+		}
+	}
+	return DoResult{RequestLabel: a.Name}
 }
 ```
 Run test with sync attackers when system is "closed" type, when response time increases,
@@ -67,10 +109,12 @@ type RunnerConfig struct {
 	TargetUrl string
 	// Name of a runner instance
 	Name string
+	// InstanceType attacker type instance, used only in cluster mode
+	InstanceType string
 	// SystemMode PrivateSystem
 	// PrivateSystem:
 	// if application under test is a private system sync runner attackers will wait for response
-	// in case your system is private and you know how many sync Nodes can act
+	// in case your system is private and you know how many sync clients can act
 	SystemMode SystemMode
 	// Attackers constant amount of attackers,
 	Attackers int

@@ -14,6 +14,10 @@ import (
 	"github.com/insolar/loaderbot"
 )
 
+func init() {
+	loaderbot.RegisterAttacker("HTTPAttackerExample", &AttackerExample{})
+}
+
 type AttackerExample struct {
 	*loaderbot.Runner
 	client *http.Client

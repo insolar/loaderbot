@@ -25,6 +25,8 @@ type RunnerConfig struct {
 	TargetUrl string
 	// Name of a runner instance
 	Name string
+	// InstanceType attacker type instance, used only in cluster mode
+	InstanceType string
 	// SystemMode PrivateSystem
 	// PrivateSystem:
 	// if application under test is a private system sync runner attackers will wait for response

@@ -205,3 +205,22 @@ func TestCommonGracefulPrometheusMultipleRunners(t *testing.T) {
 	_, err2 := r2.Run(context.TODO())
 	require.NoError(t, err2)
 }
+
+func TestCommonTypedInstance(t *testing.T) {
+	cfg := &RunnerConfig{
+		Name:            "test_runner",
+		SystemMode:      PrivateSystem,
+		Attackers:       10,
+		AttackerTimeout: 1,
+		StartRPS:        8,
+		StepDurationSec: 5,
+		StepRPS:         2,
+		TestTimeSec:     2,
+		Prometheus: &Prometheus{
+			Enable: true,
+		},
+	}
+	r := NewRunner(cfg, AttackerFromString("TypedAttackerMock1"), nil)
+	_, err := r.Run(context.TODO())
+	require.NoError(t, err)
+}
