@@ -17,29 +17,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-func TestManualDynamicLatencyAsync(t *testing.T) {
-	for i := 0; i < 10; i++ {
-		r := NewRunner(&RunnerConfig{
-			Name:            "test_runner",
-			SystemMode:      OpenWorldSystem,
-			Attackers:       1000,
-			AttackerTimeout: 5,
-			StartRPS:        10,
-			TestTimeSec:     20,
-			SuccessRatio:    1,
-			// LogLevel: "debug",
-			// Prometheus: &Prometheus{Enable: true},
-			ReportOptions: &ReportOptions{
-				CSV: true,
-				PNG: true,
-			},
-		}, &ControlAttackerMock{}, nil)
-		r.controlled.Sleep = 3000
-		_, _ = r.Run(context.TODO())
-	}
-}
-
-func TestManualDynamicLatencyAsyncHTTP(t *testing.T) {
+func TestManualDynamicLatencyHTTP(t *testing.T) {
 	srv := RunTestServer("0.0.0.0:9031", 3000*time.Millisecond)
 	// nolint
 	defer srv.Shutdown(context.Background())
@@ -47,7 +25,7 @@ func TestManualDynamicLatencyAsyncHTTP(t *testing.T) {
 		r := NewRunner(&RunnerConfig{
 			TargetUrl:       "http://0.0.0.0:9031/json_body",
 			Name:            "test_runner",
-			SystemMode:      OpenWorldSystem,
+			SystemMode:      PrivateSystem,
 			AttackerTimeout: 5,
 			StartRPS:        1000,
 			StepDurationSec: 5,
@@ -93,56 +71,6 @@ func TestManualDynamicLatencySync(t *testing.T) {
 }
 
 func TestManualAllJitter(t *testing.T) {
-	r := NewRunner(&RunnerConfig{
-		Name:            "test_runner_open_world_decrease",
-		SystemMode:      OpenWorldSystem,
-		AttackerTimeout: 25,
-		StartRPS:        100,
-		StepDurationSec: 5,
-		StepRPS:         200,
-		TestTimeSec:     60,
-		ReportOptions: &ReportOptions{
-			CSV: true,
-			PNG: true,
-		},
-	}, &ControlAttackerMock{}, nil)
-	atomic.AddInt64(&r.controlled.Sleep, 10000)
-
-	latCfg := ServiceLatencyChangeConfig{
-		R:             r,
-		Interval:      5 * time.Second,
-		LatencyStepMs: 500,
-		Times:         12,
-		LatencyFlag:   decreaseLatency,
-	}
-	go changeAttackersLatency(latCfg)
-	_, _ = r.Run(context.TODO())
-
-	r2 := NewRunner(&RunnerConfig{
-		Name:            "test_runner_open_world_jitter",
-		SystemMode:      OpenWorldSystem,
-		AttackerTimeout: 25,
-		StartRPS:        100,
-		StepDurationSec: 5,
-		StepRPS:         200,
-		TestTimeSec:     60,
-		ReportOptions: &ReportOptions{
-			CSV: true,
-			PNG: true,
-		},
-	}, &ControlAttackerMock{}, nil)
-	atomic.AddInt64(&r2.controlled.Sleep, 10000)
-
-	go func() {
-		for i := 0; i < 300; i++ {
-			time.Sleep(100 * time.Millisecond)
-			atomic.AddInt64(&r2.controlled.Sleep, -9900)
-			time.Sleep(100 * time.Millisecond)
-			atomic.AddInt64(&r2.controlled.Sleep, 9900)
-		}
-	}()
-	_, _ = r2.Run(context.TODO())
-
 	r3 := NewRunner(&RunnerConfig{
 		Name:            "test_runner_private_decrease",
 		SystemMode:      PrivateSystem,
@@ -279,7 +207,7 @@ func TestManualPrometheus(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		TargetUrl:       "http://127.0.0.1:9031/json_body",
 		Name:            "nginx_test",
-		SystemMode:      OpenWorldSystem,
+		SystemMode:      PrivateSystem,
 		Attackers:       5000,
 		AttackerTimeout: 25,
 		StartRPS:        10,
@@ -311,19 +239,6 @@ func TestManualHTTPLeak(t *testing.T) {
 	}
 	{
 		cfg.SystemMode = PrivateSystem
-		cfg.AttackerTimeout = 2
-		r := NewRunner(cfg, &HTTPAttackerExample{}, nil)
-		_, err := r.Run(context.TODO())
-		require.NoError(t, err)
-	}
-	{
-		cfg.SystemMode = OpenWorldSystem
-		r := NewRunner(cfg, &HTTPAttackerExample{}, nil)
-		_, err := r.Run(context.TODO())
-		require.NoError(t, err)
-	}
-	{
-		cfg.SystemMode = OpenWorldSystem
 		cfg.AttackerTimeout = 2
 		r := NewRunner(cfg, &HTTPAttackerExample{}, nil)
 		_, err := r.Run(context.TODO())

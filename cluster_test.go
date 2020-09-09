@@ -55,8 +55,8 @@ func TestCommonClusterShutdownOnError(t *testing.T) {
 	c := NewClusterClient(&RunnerConfig{
 		TargetUrl:       "",
 		Name:            "test_runner",
-		SystemMode:      OpenWorldSystem,
-		Attackers:       1,
+		SystemMode:      PrivateSystem,
+		Attackers:       10,
 		AttackerTimeout: 1,
 		StartRPS:        10,
 		StepDurationSec: 2,
@@ -84,8 +84,8 @@ func TestCommonClusterNodeIsBusy(t *testing.T) {
 	cfg := &RunnerConfig{
 		TargetUrl:       "https://clients5.google.com/pagead/drt/dn/",
 		Name:            "test_runner",
-		SystemMode:      OpenWorldSystem,
-		Attackers:       1,
+		SystemMode:      PrivateSystem,
+		Attackers:       10,
 		AttackerTimeout: 1,
 		StartRPS:        100,
 		StepDurationSec: 5,

@@ -33,25 +33,6 @@ func TestCommonPrivateSystemRunnerSuccess(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestCommonOpenWorldSystemRunnerSuccess(t *testing.T) {
-	r := NewRunner(&RunnerConfig{
-		Name:            "test_runner",
-		SystemMode:      OpenWorldSystem,
-		Attackers:       300,
-		AttackerTimeout: 1,
-		StartRPS:        100,
-		StepDurationSec: 10,
-		StepRPS:         20,
-		TestTimeSec:     5,
-		ReportOptions: &ReportOptions{
-			CSV: false,
-			PNG: false,
-		},
-	}, &ControlAttackerMock{}, nil)
-	_, err := r.Run(context.TODO())
-	require.NoError(t, err)
-}
-
 func TestCommonMultipleRunnersSuccess(t *testing.T) {
 	cfg := &RunnerConfig{
 		Name:            "test_runner",
@@ -72,13 +53,6 @@ func TestCommonMultipleRunnersSuccess(t *testing.T) {
 	r2 := NewRunner(cfg, &ControlAttackerMock{}, nil)
 	_, err2 := r2.Run(context.TODO())
 	require.NoError(t, err2)
-	cfg.SystemMode = OpenWorldSystem
-	r3 := NewRunner(cfg, &ControlAttackerMock{}, nil)
-	_, err3 := r3.Run(context.TODO())
-	require.NoError(t, err3)
-	r4 := NewRunner(cfg, &ControlAttackerMock{}, nil)
-	_, err4 := r4.Run(context.TODO())
-	require.NoError(t, err4)
 }
 
 func TestCommonRunnerFailOnFirstError(t *testing.T) {
@@ -171,28 +145,11 @@ func TestCommonRunnerMaxRPSPrivateSystem(t *testing.T) {
 	require.LessOrEqual(t, int(maxRPS), 74)
 }
 
-func TestCommonRunnerMaxRPSOpenWorldSystem(t *testing.T) {
-	r := NewRunner(&RunnerConfig{
-		Name:            "test_runner",
-		SystemMode:      OpenWorldSystem,
-		AttackerTimeout: 1,
-		StartRPS:        100,
-		StepDurationSec: 5,
-		StepRPS:         100,
-		TestTimeSec:     17,
-		ReportOptions: &ReportOptions{
-			CSV: true,
-		},
-	}, &ControlAttackerMock{}, nil)
-	maxRPS, err := r.Run(context.TODO())
-	require.NoError(t, err)
-	require.GreaterOrEqual(t, int(maxRPS), 400)
-}
-
 func TestCommonRunnerConstantLoad(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
-		SystemMode:      OpenWorldSystem,
+		SystemMode:      PrivateSystem,
+		Attackers:       100,
 		AttackerTimeout: 1,
 		StartRPS:        30,
 		TestTimeSec:     5,
@@ -202,23 +159,6 @@ func TestCommonRunnerConstantLoad(t *testing.T) {
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, int(maxRPS), 30)
 	require.Less(t, int(maxRPS), 33)
-
-	r2 := NewRunner(&RunnerConfig{
-		Name:            "test_runner",
-		SystemMode:      PrivateSystem,
-		Attackers:       300,
-		AttackerTimeout: 1,
-		StartRPS:        30,
-		TestTimeSec:     5,
-		ReportOptions: &ReportOptions{
-			CSV: true,
-		},
-	}, &ControlAttackerMock{}, nil)
-	r2.controlled.Sleep = 300
-	maxRPS2, err2 := r2.Run(context.TODO())
-	require.NoError(t, err2)
-	require.GreaterOrEqual(t, int(maxRPS2), 30)
-	require.LessOrEqual(t, int(maxRPS2), 33)
 }
 
 func TestCommonReportMetrics(t *testing.T) {

@@ -16,11 +16,11 @@ import (
 )
 
 func main() {
-	// OpenWorld system, spawning attackers on demand to meet rps requirements
 	cfg := &loaderbot.RunnerConfig{
 		TargetUrl:       "https://clients5.google.com/pagead/drt/dn/",
 		Name:            "runner_1",
-		SystemMode:      loaderbot.OpenWorldSystem,
+		SystemMode:      loaderbot.PrivateSystem,
+		Attackers:       10,
 		AttackerTimeout: 5,
 		StartRPS:        100,
 		StepDurationSec: 5,

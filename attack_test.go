@@ -49,20 +49,6 @@ func TestCommonAttackSuccess(t *testing.T) {
 	if got, want := int(res.Elapsed), int(r.controlled.Sleep); got < want {
 		t.Fatalf("got %v want >= %v", got, want)
 	}
-
-	// async
-	go asyncAttack(r.attackers[0], r)
-	r.next <- attackToken{
-		Step: 1,
-		Tick: 1,
-	}
-	res2 := <-r.results
-	if got, want := res2.DoResult.Error, ""; got != want {
-		t.Fatalf("got %v want %v", got, want)
-	}
-	if got, want := int(res2.Elapsed), int(r.controlled.Sleep); got < want {
-		t.Fatalf("got %v want >= %v", got, want)
-	}
 }
 
 func TestCommonAttackTimeout(t *testing.T) {
@@ -80,17 +66,6 @@ func TestCommonAttackTimeout(t *testing.T) {
 	}
 	res := <-r.results
 	if got, want := res.DoResult.Error, errAttackDoTimedOut; got != want {
-		t.Fatalf("got %v want %v", got, want)
-	}
-
-	// async
-	go attack(r.attackers[0], r)
-	r.next <- attackToken{
-		Step: 1,
-		Tick: 1,
-	}
-	res2 := <-r.results
-	if got, want := res2.DoResult.Error, errAttackDoTimedOut; got != want {
 		t.Fatalf("got %v want %v", got, want)
 	}
 }

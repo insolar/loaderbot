@@ -24,7 +24,7 @@ func main() {
 		r := loaderbot.NewRunner(&loaderbot.RunnerConfig{
 			TargetUrl:       target,
 			Name:            fmt.Sprintf("dummy_test_%d", i),
-			SystemMode:      loaderbot.OpenWorldSystem,
+			SystemMode:      loaderbot.PrivateSystem,
 			Attackers:       20000,
 			AttackerTimeout: 25,
 			StartRPS:        10000,

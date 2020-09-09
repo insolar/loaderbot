@@ -185,8 +185,6 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 	r.TimeoutCtx, r.CancelFunc = context.WithTimeout(serverCtx, time.Duration(r.Cfg.TestTimeSec)*time.Second)
 	for atkIdx, attacker := range r.attackers {
 		switch r.Cfg.SystemMode {
-		case OpenWorldSystem:
-			go asyncAttack(attacker, r)
 		case PrivateSystem:
 			r.L.Debugf("starting attacker: %d", atkIdx)
 			go attack(attacker, r)
@@ -206,9 +204,21 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 		maxRPS = r.maxRPS()
 		r.L.Infof("max rps: %.2f", maxRPS)
 	}
-	r.HTTPClient.CloseIdleConnections()
+	r.safeCloseIdleConnections()
 	r.L.Infof("runner exited")
 	return maxRPS, nil
+}
+
+func (r *Runner) safeCloseIdleConnections() {
+	defer func() {
+		if rec := recover(); rec != nil {
+			// we don't know if user will use default http client,
+			// client panics if there is no connections but we closing them
+			// https://golang.org/src/net/http/transport.go#L1447
+			r.L.Infof("no http connections were made, safe closing connections")
+		}
+	}()
+	r.HTTPClient.CloseIdleConnections()
 }
 
 // schedule creates schedule plan for a test

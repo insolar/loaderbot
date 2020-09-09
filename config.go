@@ -17,7 +17,6 @@ type SystemMode int
 
 const (
 	PrivateSystem SystemMode = iota
-	OpenWorldSystem
 )
 
 // RunnerConfig runner configuration
@@ -26,17 +25,12 @@ type RunnerConfig struct {
 	TargetUrl string
 	// Name of a runner instance
 	Name string
-	// SystemMode PrivateSystem | OpenWorldSystem
+	// SystemMode PrivateSystem
 	// PrivateSystem:
 	// if application under test is a private system sync runner attackers will wait for response
-	// in case your system is private and you know how many sync Nodes can act
-	// OpenWorldSystem:
-	// if application under test is an open world system async runner attackers will fire requests without waiting
-	// it creates some inaccuracy in Results, so you can check latencies using service metrics to be precise,
-	// but the test will be more realistic from Nodes point of view
+	// in case your system is private and you know how many sync clients can act
 	SystemMode SystemMode
 	// Attackers constant amount of attackers,
-	// if SystemMode is "OpenWorldSystem", attackers will be spawn on demand to meet rps
 	Attackers int
 	// AttackerTimeout timeout of attacker
 	AttackerTimeout int
@@ -106,10 +100,6 @@ func (c *RunnerConfig) Validate() {
 }
 
 func (c *RunnerConfig) DefaultCfgValues() {
-	if c.SystemMode == OpenWorldSystem {
-		// attacker will spawn goroutines for requests anyway, in this mode we are non-blocking
-		c.Attackers = 1
-	}
 	if c.StartRPS == 0 {
 		c.StartRPS = 10
 	}

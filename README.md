@@ -41,7 +41,7 @@ func (a *AttackerExample) Teardown() error {
 }
 ```
 Run test with sync attackers when system is "closed" type, when response time increases,
- attackers may be blocked and it's okay for this mode
+ attackers may be blocked
 ```go
 cfg := &loaderbot.RunnerConfig{
 		TargetUrl:       "https://clients5.google.com/pagead/drt/dn/",
@@ -57,22 +57,6 @@ cfg := &loaderbot.RunnerConfig{
 lt := loaderbot.NewRunner(cfg, &loaderbot.HTTPAttackerExample{}, nil)
 maxRPS, _ := lt.Run()
 ```
-or with async attackers, when your system is "open" type, ex. search engine,
- when amount of attackers is unknown and you don't know will they block, but you still have RPS requirements
-```go
-cfg := &loaderbot.RunnerConfig{
-		TargetUrl:       "https://clients5.google.com/pagead/drt/dn/",
-		Name:            "abc",
-		SystemMode:      loaderbot.OpenWorldSystem,
-		AttackerTimeout: 5,
-		StartRPS:        100,
-		StepDurationSec: 30,
-		StepRPS:         10,
-		TestTimeSec:     200,
-	}
-lt := loaderbot.NewRunner(cfg, &loaderbot.HTTPAttackerExample{}, nil)
-maxRPS, _ := lt.Run()
-```
 see more [examples](examples/tests)
 
 Config options
@@ -83,17 +67,12 @@ type RunnerConfig struct {
 	TargetUrl string
 	// Name of a runner instance
 	Name string
-	// SystemMode PrivateSystem | OpenWorldSystem
+	// SystemMode PrivateSystem
 	// PrivateSystem:
 	// if application under test is a private system sync runner attackers will wait for response
 	// in case your system is private and you know how many sync Nodes can act
-	// OpenWorldSystem:
-	// if application under test is an open world system async runner attackers will fire requests without waiting
-	// it creates some inaccuracy in Results, so you can check latencies using service metrics to be precise,
-	// but the test will be more realistic from Nodes point of view
 	SystemMode SystemMode
 	// Attackers constant amount of attackers,
-	// if SystemMode is "OpenWorldSystem", attackers will be spawn on demand to meet rps
 	Attackers int
 	// AttackerTimeout timeout of attacker
 	AttackerTimeout int
