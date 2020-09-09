@@ -22,18 +22,19 @@ func main() {
 	// target = "http://localhost:9031/json_body"
 	for i := 0; i < 10; i++ {
 		r := loaderbot.NewRunner(&loaderbot.RunnerConfig{
-			TargetUrl:       target,
-			Name:            fmt.Sprintf("dummy_test_%d", i),
-			SystemMode:      loaderbot.PrivateSystem,
-			Attackers:       20000,
-			AttackerTimeout: 25,
-			StartRPS:        10000,
-			StepDurationSec: 5,
-			StepRPS:         5000,
-			TestTimeSec:     60,
-			SuccessRatio:    0.95,
+			TargetUrl:               target,
+			Name:                    fmt.Sprintf("dummy_test_%d", i),
+			SystemMode:              loaderbot.Autoscale,
+			AttackersScaleThreshold: 0.97,
+			Attackers:               10,
+			AttackerTimeout:         25,
+			StartRPS:                10000,
+			StepDurationSec:         5,
+			StepRPS:                 5000,
+			TestTimeSec:             60,
+			SuccessRatio:            0.95,
 			// Prometheus:   &loaderbot.Prometheus{Enable: true},
-		}, &loaderbot.FastHTTPAttackerExample{}, nil)
+		}, &loaderbot.HTTPAttackerExample{}, nil)
 		_, _ = r.Run(context.TODO())
 	}
 }

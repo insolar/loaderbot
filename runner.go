@@ -170,9 +170,6 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 		Addr: "0.0.0.0:10500",
 	})
 
-	// r.results = make(chan AttackResult, DefaultResultsQueueCapacity)
-	// r.OutResults = make(chan []AttackResult, DefaultResultsQueueCapacity)
-
 	runStartTime := time.Now()
 	if r.Cfg.WaitBeforeSec > 0 {
 		r.L.Infof("waiting for %d seconds before start", r.Cfg.WaitBeforeSec)
@@ -184,11 +181,8 @@ func (r *Runner) Run(serverCtx context.Context) (float64, error) {
 	}
 	r.TimeoutCtx, r.CancelFunc = context.WithTimeout(serverCtx, time.Duration(r.Cfg.TestTimeSec)*time.Second)
 	for atkIdx, attacker := range r.attackers {
-		switch r.Cfg.SystemMode {
-		case PrivateSystem:
-			r.L.Debugf("starting attacker: %d", atkIdx)
-			go attack(attacker, r)
-		}
+		r.L.Debugf("starting attacker: %d", atkIdx)
+		go attack(attacker, r)
 	}
 	r.handleShutdownSignal()
 	r.schedule()
@@ -302,6 +296,21 @@ func (r *Runner) collectResults() {
 	}()
 }
 
+// scaleAttackers scaling attackers to meet targetRPS
+func (r *Runner) scaleAttackers(tm *TickMetrics) {
+	if r.Cfg.SystemMode == Autoscale && tm.Metrics.Rate < float64(tm.Samples[0].AttackToken.TargetRPS)*r.Cfg.AttackersScaleThreshold {
+		r.L.Infof("scaling attackers: %d", r.Cfg.AttackersScaleAmount)
+		for i := 0; i < r.Cfg.AttackersScaleAmount; i++ {
+			a := r.attackerPrototype.Clone(r)
+			if err := a.Setup(*r.Cfg); err != nil {
+				log.Fatal(errAttackerSetup)
+			}
+			r.attackers = append(r.attackers, a)
+			go attack(a, r)
+		}
+	}
+}
+
 // processTickMetrics add attack result to tick metrics, if it's last result in tick then report
 func (r *Runner) processTickMetrics(res AttackResult) {
 	// if no such tick, create new TickMetrics
@@ -330,9 +339,10 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 			r.CancelFunc()
 		}
 		r.L.Infof(
-			"step: %d, tick: %d, rate [%.4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%.4f]",
+			"step: %d, tick: %d, attacker: %d, rate [%.4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%.4f]",
 			res.AttackToken.Step,
 			res.AttackToken.Tick,
+			len(r.attackers),
 			currentTickMetrics.Metrics.Rate,
 			res.AttackToken.TargetRPS,
 			currentTickMetrics.Metrics.Latencies.P50,
@@ -347,6 +357,7 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 		if r.Cfg.Prometheus != nil && r.Cfg.Prometheus.Enable {
 			r.PromReporter.reportTick(currentTickMetrics)
 		}
+		r.scaleAttackers(currentTickMetrics)
 		currentTickMetrics.Reported = true
 		delete(r.receivedTickMetrics, res.AttackToken.Tick)
 	}

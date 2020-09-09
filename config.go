@@ -17,6 +17,7 @@ type SystemMode int
 
 const (
 	PrivateSystem SystemMode = iota
+	Autoscale
 )
 
 // RunnerConfig runner configuration
@@ -31,9 +32,16 @@ type RunnerConfig struct {
 	// PrivateSystem:
 	// if application under test is a private system sync runner attackers will wait for response
 	// in case your system is private and you know how many sync clients can act
+	// Autoscale:
+	// try to scale attackers when all attackers are blocked
 	SystemMode SystemMode
 	// Attackers constant amount of attackers,
 	Attackers int
+	// AttackersScaleFactor how much attackers to add when rps is not met, default is 100
+	AttackersScaleAmount int
+	// AttackersScaleThreshold scale if current rate is less than target rate * threshold,
+	// interval of values = [0, 1], default is 0.90
+	AttackersScaleThreshold float64
 	// AttackerTimeout timeout of attacker
 	AttackerTimeout int
 	// StartRPS initial requests per seconds rate
@@ -131,6 +139,14 @@ func (c *RunnerConfig) DefaultCfgValues() {
 	}
 	if c.Prometheus != nil && c.Prometheus.Port == 0 {
 		c.Prometheus.Port = 2112
+	}
+	if c.SystemMode == Autoscale {
+		if c.AttackersScaleAmount == 0 {
+			c.AttackersScaleAmount = 100
+		}
+		if c.AttackersScaleThreshold == 0 {
+			c.AttackersScaleThreshold = 0.9
+		}
 	}
 }
 

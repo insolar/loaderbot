@@ -115,9 +115,16 @@ type RunnerConfig struct {
 	// PrivateSystem:
 	// if application under test is a private system sync runner attackers will wait for response
 	// in case your system is private and you know how many sync clients can act
+	// Autoscale:
+	// try to scale attackers when all attackers are blocked
 	SystemMode SystemMode
 	// Attackers constant amount of attackers,
 	Attackers int
+	// AttackersScaleFactor how much attackers to add when rps is not met, default is 100
+	AttackersScaleAmount int
+	// AttackersScaleThreshold scale if current rate is less than target rate * threshold,
+	// interval of values = [0, 1], default is 0.90
+	AttackersScaleThreshold float64
 	// AttackerTimeout timeout of attacker
 	AttackerTimeout int
 	// StartRPS initial requests per seconds rate

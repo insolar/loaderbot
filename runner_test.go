@@ -224,3 +224,24 @@ func TestCommonTypedInstance(t *testing.T) {
 	_, err := r.Run(context.TODO())
 	require.NoError(t, err)
 }
+
+func TestCommonAutoscale(t *testing.T) {
+	rps := 100
+	r := NewRunner(&RunnerConfig{
+		Name:            "test_runner",
+		SystemMode:      Autoscale,
+		Attackers:       100,
+		AttackerTimeout: 5,
+		StartRPS:        rps,
+		StepDurationSec: 2,
+		StepRPS:         100,
+		TestTimeSec:     10,
+		ReportOptions: &ReportOptions{
+			CSV: true,
+		},
+	}, &ControlAttackerMock{}, nil)
+	r.controlled.Sleep = 1000
+	maxRPS, _ := r.Run(context.TODO())
+	// 100 attacker with 1 second blocked on request = 100 rps because clients are blocked
+	require.GreaterOrEqual(t, int(maxRPS), rps)
+}

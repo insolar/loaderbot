@@ -9,11 +9,12 @@ func _() {
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
 	_ = x[PrivateSystem-0]
+	_ = x[Autoscale-1]
 }
 
-const _SystemMode_name = "PrivateSystem"
+const _SystemMode_name = "PrivateSystemAutoscale"
 
-var _SystemMode_index = [...]uint8{0, 13}
+var _SystemMode_index = [...]uint8{0, 13, 22}
 
 func (i SystemMode) String() string {
 	if i < 0 || i >= SystemMode(len(_SystemMode_index)-1) {
