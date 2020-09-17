@@ -232,7 +232,7 @@ func (r *Runner) schedule() {
 			requestsFiredInTick = 0
 		)
 		if r.Cfg.SystemMode == UnboundRPS {
-			// analyze 1k samples if no rps requirements
+			// analyze 100 samples by each attacker if no rps requirements
 			r.targetRPS = len(r.attackers) * 100
 			ticksInStep = 1
 		}
