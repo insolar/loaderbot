@@ -16,8 +16,9 @@ import (
 type SystemMode int
 
 const (
-	PrivateSystem SystemMode = iota
-	Autoscale
+	BoundRPS SystemMode = iota
+	UnboundRPS
+	BoundRPSAutoscale
 )
 
 // RunnerConfig runner configuration
@@ -28,12 +29,14 @@ type RunnerConfig struct {
 	Name string
 	// InstanceType attacker type instance, used only in cluster mode
 	InstanceType string
-	// SystemMode PrivateSystem
-	// PrivateSystem:
+	// SystemMode BoundRPS
+	// BoundRPS:
 	// if application under test is a private system sync runner attackers will wait for response
 	// in case your system is private and you know how many sync clients can act
-	// Autoscale:
+	// BoundRPSAutoscale:
 	// try to scale attackers when all attackers are blocked
+	// UnboundRPS:
+	// attack as fast as we can with N attackers
 	SystemMode SystemMode
 	// Attackers constant amount of attackers,
 	Attackers int
@@ -110,11 +113,11 @@ func (c *RunnerConfig) Validate() {
 }
 
 func (c *RunnerConfig) DefaultCfgValues() {
-	if c.StartRPS == 0 {
+	if c.SystemMode == BoundRPS && c.StartRPS == 0 {
 		c.StartRPS = 10
 	}
 	// constant load
-	if c.StepRPS == 0 {
+	if c.SystemMode == BoundRPS && c.StepRPS == 0 {
 		c.StepDurationSec = 10
 	}
 	if c.LogLevel == "" {
@@ -140,7 +143,7 @@ func (c *RunnerConfig) DefaultCfgValues() {
 	if c.Prometheus != nil && c.Prometheus.Port == 0 {
 		c.Prometheus.Port = 2112
 	}
-	if c.SystemMode == Autoscale {
+	if c.SystemMode == BoundRPSAutoscale {
 		if c.AttackersScaleAmount == 0 {
 			c.AttackersScaleAmount = 100
 		}
@@ -155,7 +158,7 @@ func (c RunnerConfig) validate() (list []string) {
 	if c.Name == "" {
 		list = append(list, "please set runner name")
 	}
-	if c.Attackers <= 0 && c.SystemMode == PrivateSystem {
+	if c.Attackers <= 0 && c.SystemMode == BoundRPS {
 		list = append(list, "please set attackers > 0")
 	}
 	if c.AttackerTimeout <= 0 {
@@ -164,7 +167,7 @@ func (c RunnerConfig) validate() (list []string) {
 	if c.StepDurationSec < 0 {
 		list = append(list, "please set step duration > 0, seconds")
 	}
-	if c.StepRPS < 0 {
+	if c.SystemMode == BoundRPS && c.StepRPS < 0 {
 		list = append(list, "please set step rps > 0")
 	}
 	if c.TestTimeSec <= 0 {

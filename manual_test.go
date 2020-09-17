@@ -25,7 +25,8 @@ func TestManualDynamicLatencyHTTP(t *testing.T) {
 		r := NewRunner(&RunnerConfig{
 			TargetUrl:       "http://0.0.0.0:9031/json_body",
 			Name:            "test_runner",
-			SystemMode:      PrivateSystem,
+			SystemMode:      BoundRPS,
+			Attackers:       1000,
 			AttackerTimeout: 5,
 			StartRPS:        1000,
 			StepDurationSec: 5,
@@ -45,7 +46,7 @@ func TestManualDynamicLatencyHTTP(t *testing.T) {
 func TestManualDynamicLatencySync(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
-		SystemMode:      PrivateSystem,
+		SystemMode:      BoundRPS,
 		Attackers:       5000,
 		AttackerTimeout: 25,
 		StartRPS:        10,
@@ -70,10 +71,10 @@ func TestManualDynamicLatencySync(t *testing.T) {
 	_, _ = r.Run(context.TODO())
 }
 
-func TestManualAllJitter(t *testing.T) {
+func TestManualCorrectTickMetrics(t *testing.T) {
 	r3 := NewRunner(&RunnerConfig{
 		Name:            "test_runner_private_decrease",
-		SystemMode:      PrivateSystem,
+		SystemMode:      BoundRPS,
 		Attackers:       5000,
 		AttackerTimeout: 25,
 		StartRPS:        10,
@@ -99,7 +100,7 @@ func TestManualAllJitter(t *testing.T) {
 
 	r4 := NewRunner(&RunnerConfig{
 		Name:            "test_runner_private_jitter",
-		SystemMode:      PrivateSystem,
+		SystemMode:      BoundRPS,
 		Attackers:       5000,
 		AttackerTimeout: 25,
 		StartRPS:        10,
@@ -128,7 +129,7 @@ func TestManualLeak(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		r := NewRunner(&RunnerConfig{
 			Name:            "test_runner_open_world_decrease",
-			SystemMode:      PrivateSystem,
+			SystemMode:      BoundRPS,
 			Attackers:       300,
 			AttackerTimeout: 25,
 			StartRPS:        10,
@@ -151,7 +152,7 @@ func TestManualRunnerNginxStaticAttackFastHTTP(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		TargetUrl:       "http://localhost:8080/static.html",
 		Name:            "nginx_test",
-		SystemMode:      PrivateSystem,
+		SystemMode:      BoundRPS,
 		Attackers:       5000,
 		AttackerTimeout: 25,
 		StartRPS:        5000,
@@ -169,7 +170,7 @@ func TestManualRunnerNginxStaticAttackDefaultHTTP(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		TargetUrl:       "http://127.0.0.1:8080/static.html",
 		Name:            "nginx_test",
-		SystemMode:      PrivateSystem,
+		SystemMode:      BoundRPS,
 		Attackers:       3000,
 		AttackerTimeout: 25,
 		StartRPS:        3000,
@@ -185,7 +186,7 @@ func TestManualRunnerRealServiceAttack(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		TargetUrl:       "https://clients5.google.com/pagead/drt/dn/",
 		Name:            "test_runner",
-		SystemMode:      PrivateSystem,
+		SystemMode:      BoundRPS,
 		Attackers:       3000,
 		AttackerTimeout: 5,
 		StartRPS:        1000,
@@ -207,7 +208,7 @@ func TestManualPrometheus(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		TargetUrl:       "http://127.0.0.1:9031/json_body",
 		Name:            "nginx_test",
-		SystemMode:      PrivateSystem,
+		SystemMode:      BoundRPS,
 		Attackers:       5000,
 		AttackerTimeout: 25,
 		StartRPS:        10,
@@ -232,16 +233,34 @@ func TestManualHTTPLeak(t *testing.T) {
 		TestTimeSec:     4,
 	}
 	{
-		cfg.SystemMode = PrivateSystem
+		cfg.SystemMode = BoundRPS
 		r := NewRunner(cfg, &HTTPAttackerExample{}, nil)
 		_, err := r.Run(context.TODO())
 		require.NoError(t, err)
 	}
 	{
-		cfg.SystemMode = PrivateSystem
+		cfg.SystemMode = BoundRPS
 		cfg.AttackerTimeout = 2
 		r := NewRunner(cfg, &HTTPAttackerExample{}, nil)
 		_, err := r.Run(context.TODO())
 		require.NoError(t, err)
 	}
+}
+
+func TestManualUnboundRPS(t *testing.T) {
+	srv := RunTestServer("0.0.0.0:9031", 50*time.Millisecond)
+	// nolint
+	defer srv.Shutdown(context.Background())
+	time.Sleep(1 * time.Second)
+	r := NewRunner(&RunnerConfig{
+		TargetUrl:       "http://127.0.0.1:9031/json_body",
+		Name:            "nginx_test",
+		SystemMode:      UnboundRPS,
+		Attackers:       2,
+		AttackerTimeout: 25,
+		TestTimeSec:     30,
+		SuccessRatio:    0.95,
+		Prometheus:      &Prometheus{Enable: true},
+	}, &HTTPAttackerExample{}, nil)
+	_, _ = r.Run(context.TODO())
 }

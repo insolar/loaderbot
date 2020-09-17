@@ -82,13 +82,12 @@ func (a *FastHTTPAttackerExample) Do(_ context.Context) DoResult {
 	return DoResult{RequestLabel: a.Name}
 }
 ```
-Run test with sync attackers when system is "closed" type, when response time increases,
- attackers may be blocked
+Run test with constant amount of attackers (clients) using `BoundRPS` mode
 ```go
 cfg := &loaderbot.RunnerConfig{
 		TargetUrl:       "https://clients5.google.com/pagead/drt/dn/",
 		Name:            "abc",
-		SystemMode:      loaderbot.PrivateSystem,
+		SystemMode:      loaderbot.BoundRPS,
 		Attackers:       100,
 		AttackerTimeout: 5,
 		StartRPS:        100,
@@ -98,6 +97,36 @@ cfg := &loaderbot.RunnerConfig{
 	}
 lt := loaderbot.NewRunner(cfg, &loaderbot.HTTPAttackerExample{}, nil)
 maxRPS, _ := lt.Run()
+```
+Another option is to use `BoundRPSAutoscale` to add attackers if target rps isn't met during the test, which is more realistic in "open world" systems like search engines
+```go
+cfg := &loaderbot.RunnerConfig{
+		TargetUrl:       "https://clients5.google.com/pagead/drt/dn/",
+		Name:            "abc",
+		SystemMode:      loaderbot.BoundRPSAutoscale,
+		Attackers:       100,
+		AttackerTimeout: 5,
+		StartRPS:        100,
+		StepDurationSec: 10,
+		StepRPS:         300,
+		TestTimeSec:     200,
+	}
+lt := loaderbot.NewRunner(cfg, &loaderbot.HTTPAttackerExample{}, nil)
+maxRPS, _ := lt.Run()
+```
+Or use `UnboundRPS` to check system scalability
+```go
+r := NewRunner(&loaderbot.RunnerConfig{
+		TargetUrl:       "http://127.0.0.1:9031/json_body",
+		Name:            "nginx_test",
+		SystemMode:      loaderbot.UnboundRPS,
+		Attackers:       20,
+		AttackerTimeout: 25,
+		TestTimeSec:     30,
+		SuccessRatio:    0.95,
+		Prometheus:      &Prometheus{Enable: true},
+	}, &HTTPAttackerExample{}, nil)
+_, _ = r.Run(context.TODO())
 ```
 see more [examples](examples/tests)
 
@@ -111,12 +140,14 @@ type RunnerConfig struct {
 	Name string
 	// InstanceType attacker type instance, used only in cluster mode
 	InstanceType string
-	// SystemMode PrivateSystem
-	// PrivateSystem:
+	// SystemMode BoundRPS
+	// BoundRPS:
 	// if application under test is a private system sync runner attackers will wait for response
 	// in case your system is private and you know how many sync clients can act
-	// Autoscale:
+	// BoundRPSAutoscale:
 	// try to scale attackers when all attackers are blocked
+	// UnboundRPS:
+	// attack as fast as we can with N attackers
 	SystemMode SystemMode
 	// Attackers constant amount of attackers,
 	Attackers int

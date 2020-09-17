@@ -31,6 +31,8 @@ const (
 	MetricsLogFile              = "requests_%s_%s_%d.csv"
 	PercsLogFile                = "percs_%s_%s_%d.csv"
 	ReportGraphFile             = "percs_%s_%s_%d.html"
+	BoundRPSTickTemplate        = "step: %d, tick: %d, attackers: [%d], rate [%.4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%.4f]"
+	UnboundRPSTickTemplate      = "attackers: [%d], rate [%.4f], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%.4f]"
 )
 
 var (
@@ -121,13 +123,17 @@ type Runner struct {
 func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 	cfg.Validate()
 	cfg.DefaultCfgValues()
+	var rl ratelimit.Limiter
+	if cfg.SystemMode == BoundRPS || cfg.SystemMode == BoundRPSAutoscale {
+		rl = ratelimit.New(cfg.StartRPS)
+	}
 	r := &Runner{
 		Name:                  cfg.Name,
 		Cfg:                   cfg,
 		attackerPrototype:     a,
 		targetRPS:             cfg.StartRPS,
 		next:                  make(chan attackToken),
-		rl:                    ratelimit.New(cfg.StartRPS),
+		rl:                    rl,
 		attackers:             make([]Attack, 0),
 		results:               make(chan AttackResult, DefaultResultsQueueCapacity),
 		OutResults:            make(chan []AttackResult, DefaultResultsQueueCapacity),
@@ -225,6 +231,11 @@ func (r *Runner) schedule() {
 			totalRequestsFired  = 0
 			requestsFiredInTick = 0
 		)
+		if r.Cfg.SystemMode == UnboundRPS {
+			// analyze 1k samples if no rps requirements
+			r.targetRPS = len(r.attackers) * 100
+			ticksInStep = 1
+		}
 		for {
 			select {
 			case <-r.TimeoutCtx.Done():
@@ -232,7 +243,9 @@ func (r *Runner) schedule() {
 				close(r.next)
 				return
 			default:
-				r.rl.Take()
+				if r.rl != nil {
+					r.rl.Take()
+				}
 				// either schedule attack and count requests, or retry in limiter pace
 				select {
 				case r.next <- attackToken{
@@ -248,12 +261,14 @@ func (r *Runner) schedule() {
 				if requestsFiredInTick == r.targetRPS {
 					currentTick += 1
 					requestsFiredInTick = 0
-					r.L.Infof("current active goroutines: %d", runtime.NumGoroutine())
+					r.L.Infof("active goroutines: %d", runtime.NumGoroutine())
 					if currentTick%ticksInStep == 0 {
-						r.targetRPS += r.Cfg.StepRPS
-						r.rl = ratelimit.New(r.targetRPS)
-						currentStep += 1
-						r.L.Infof("next step: step -> %d, rps -> %d", currentStep, r.targetRPS)
+						if r.rl != nil {
+							r.targetRPS += r.Cfg.StepRPS
+							r.rl = ratelimit.New(r.targetRPS)
+							currentStep += 1
+							r.L.Infof("next step: step -> %d, rps -> %d", currentStep, r.targetRPS)
+						}
 					}
 				}
 			}
@@ -298,7 +313,7 @@ func (r *Runner) collectResults() {
 
 // scaleAttackers scaling attackers to meet targetRPS
 func (r *Runner) scaleAttackers(tm *TickMetrics) {
-	if r.Cfg.SystemMode == Autoscale && tm.Metrics.Rate < float64(tm.Samples[0].AttackToken.TargetRPS)*r.Cfg.AttackersScaleThreshold {
+	if r.Cfg.SystemMode == BoundRPSAutoscale && tm.Metrics.Rate < float64(tm.Samples[0].AttackToken.TargetRPS)*r.Cfg.AttackersScaleThreshold {
 		r.L.Infof("scaling attackers: %d", r.Cfg.AttackersScaleAmount)
 		for i := 0; i < r.Cfg.AttackersScaleAmount; i++ {
 			a := r.attackerPrototype.Clone(r)
@@ -338,19 +353,35 @@ func (r *Runner) processTickMetrics(res AttackResult) {
 			atomic.AddInt64(&r.Failed, 1)
 			r.CancelFunc()
 		}
-		r.L.Infof(
-			"step: %d, tick: %d, attacker: %d, rate [%.4f -> %v], perc: 50 [%v] 95 [%v] 99 [%v], # requests [%d], %% success [%.4f]",
-			res.AttackToken.Step,
-			res.AttackToken.Tick,
-			len(r.attackers),
-			currentTickMetrics.Metrics.Rate,
-			res.AttackToken.TargetRPS,
-			currentTickMetrics.Metrics.Latencies.P50,
-			currentTickMetrics.Metrics.Latencies.P95,
-			currentTickMetrics.Metrics.Latencies.P99,
-			currentTickMetrics.Metrics.Requests,
-			currentTickMetrics.Metrics.successLogEntry(),
-		)
+		switch r.Cfg.SystemMode {
+		case BoundRPS:
+			fallthrough
+		case BoundRPSAutoscale:
+			r.L.Infof(
+				BoundRPSTickTemplate,
+				res.AttackToken.Step,
+				res.AttackToken.Tick,
+				len(r.attackers),
+				currentTickMetrics.Metrics.Rate,
+				res.AttackToken.TargetRPS,
+				currentTickMetrics.Metrics.Latencies.P50,
+				currentTickMetrics.Metrics.Latencies.P95,
+				currentTickMetrics.Metrics.Latencies.P99,
+				currentTickMetrics.Metrics.Requests,
+				currentTickMetrics.Metrics.successLogEntry(),
+			)
+		case UnboundRPS:
+			r.L.Infof(
+				UnboundRPSTickTemplate,
+				len(r.attackers),
+				currentTickMetrics.Metrics.Rate,
+				currentTickMetrics.Metrics.Latencies.P50,
+				currentTickMetrics.Metrics.Latencies.P95,
+				currentTickMetrics.Metrics.Latencies.P99,
+				currentTickMetrics.Metrics.Requests,
+				currentTickMetrics.Metrics.successLogEntry(),
+			)
+		}
 		if r.Cfg.ReportOptions.CSV {
 			r.Report.writePercentilesEntry(res, currentTickMetrics.Metrics)
 		}

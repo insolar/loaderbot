@@ -8,13 +8,14 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[PrivateSystem-0]
-	_ = x[Autoscale-1]
+	_ = x[BoundRPS-0]
+	_ = x[UnboundRPS-1]
+	_ = x[BoundRPSAutoscale-2]
 }
 
-const _SystemMode_name = "PrivateSystemAutoscale"
+const _SystemMode_name = "BoundRPSUnboundRPSAutoscale"
 
-var _SystemMode_index = [...]uint8{0, 13, 22}
+var _SystemMode_index = [...]uint8{0, 8, 18, 27}
 
 func (i SystemMode) String() string {
 	if i < 0 || i >= SystemMode(len(_SystemMode_index)-1) {

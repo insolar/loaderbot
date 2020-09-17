@@ -19,7 +19,7 @@ func main() {
 	cfg := &loaderbot.RunnerConfig{
 		TargetUrl:       "https://clients5.google.com/pagead/drt/dn/",
 		Name:            "runner_1",
-		SystemMode:      loaderbot.PrivateSystem,
+		SystemMode:      loaderbot.BoundRPS,
 		Attackers:       10,
 		AttackerTimeout: 5,
 		StartRPS:        100,

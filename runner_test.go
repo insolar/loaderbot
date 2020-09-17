@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCommonPrivateSystemRunnerSuccess(t *testing.T) {
+func TestCommonBoundRPSRunnerSuccess(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
 		Attackers:       10,
@@ -85,7 +85,7 @@ func TestCommonRunnerFailOnFirstError(t *testing.T) {
 func TestCommonRunnerHangedRequestsAfterTimeoutNoError(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
-		SystemMode:      PrivateSystem,
+		SystemMode:      BoundRPS,
 		Attackers:       10,
 		AttackerTimeout: 5,
 		StartRPS:        1,
@@ -104,11 +104,11 @@ func TestCommonRunnerHangedRequestsAfterTimeoutNoError(t *testing.T) {
 	require.Empty(t, r.uniqErrors)
 }
 
-func TestCommonPrivateSystemRunnerIsSync(t *testing.T) {
+func TestCommonBoundRPSRunnerIsSync(t *testing.T) {
 	rps := 100
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
-		SystemMode:      PrivateSystem,
+		SystemMode:      BoundRPS,
 		Attackers:       100,
 		AttackerTimeout: 5,
 		StartRPS:        rps,
@@ -125,11 +125,11 @@ func TestCommonPrivateSystemRunnerIsSync(t *testing.T) {
 	require.GreaterOrEqual(t, int(maxRPS), rps)
 }
 
-func TestCommonRunnerMaxRPSPrivateSystem(t *testing.T) {
+func TestCommonRunnerMaxRPSBoundRPS(t *testing.T) {
 	rps := 100
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
-		SystemMode:      PrivateSystem,
+		SystemMode:      BoundRPS,
 		Attackers:       20,
 		AttackerTimeout: 1,
 		StartRPS:        rps,
@@ -148,7 +148,7 @@ func TestCommonRunnerMaxRPSPrivateSystem(t *testing.T) {
 func TestCommonRunnerConstantLoad(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
-		SystemMode:      PrivateSystem,
+		SystemMode:      BoundRPS,
 		Attackers:       100,
 		AttackerTimeout: 1,
 		StartRPS:        30,
@@ -164,7 +164,7 @@ func TestCommonRunnerConstantLoad(t *testing.T) {
 func TestCommonReportMetrics(t *testing.T) {
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
-		SystemMode:      PrivateSystem,
+		SystemMode:      BoundRPS,
 		Attackers:       10,
 		AttackerTimeout: 1,
 		StartRPS:        8,
@@ -187,7 +187,7 @@ func TestCommonReportMetrics(t *testing.T) {
 func TestCommonGracefulPrometheusMultipleRunners(t *testing.T) {
 	cfg := &RunnerConfig{
 		Name:            "test_runner",
-		SystemMode:      PrivateSystem,
+		SystemMode:      BoundRPS,
 		Attackers:       10,
 		AttackerTimeout: 1,
 		StartRPS:        8,
@@ -209,7 +209,7 @@ func TestCommonGracefulPrometheusMultipleRunners(t *testing.T) {
 func TestCommonTypedInstance(t *testing.T) {
 	cfg := &RunnerConfig{
 		Name:            "test_runner",
-		SystemMode:      PrivateSystem,
+		SystemMode:      BoundRPS,
 		Attackers:       10,
 		AttackerTimeout: 1,
 		StartRPS:        8,
@@ -229,7 +229,7 @@ func TestCommonAutoscale(t *testing.T) {
 	rps := 100
 	r := NewRunner(&RunnerConfig{
 		Name:            "test_runner",
-		SystemMode:      Autoscale,
+		SystemMode:      BoundRPSAutoscale,
 		Attackers:       100,
 		AttackerTimeout: 5,
 		StartRPS:        rps,
