@@ -24,10 +24,13 @@ func main() {
 		r := loaderbot.NewRunner(&loaderbot.RunnerConfig{
 			TargetUrl:       target,
 			Name:            fmt.Sprintf("dummy_test_%d", i),
-			SystemMode:      loaderbot.UnboundRPS,
-			Attackers:       270,
+			SystemMode:      loaderbot.BoundRPS,
+			Attackers:       1000,
+			StartRPS:        20000,
+			StepRPS:         5000,
+			StepDurationSec: 3,
 			AttackerTimeout: 25,
-			TestTimeSec:     10,
+			TestTimeSec:     20,
 			SuccessRatio:    0.95,
 		}, &loaderbot.HTTPAttackerExample{}, nil)
 		_, _ = r.Run(context.TODO())

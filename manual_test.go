@@ -258,7 +258,7 @@ func TestManualUnboundRPS(t *testing.T) {
 		SystemMode:      UnboundRPS,
 		Attackers:       2,
 		AttackerTimeout: 25,
-		TestTimeSec:     30,
+		TestTimeSec:     300,
 		SuccessRatio:    0.95,
 		Prometheus:      &Prometheus{Enable: true},
 	}, &HTTPAttackerExample{}, nil)

@@ -158,6 +158,7 @@ func NewRunner(cfg *RunnerConfig, a Attack, data interface{}) *Runner {
 		r.Report = NewReport(r.Cfg)
 	}
 	if cfg.Prometheus != nil && cfg.Prometheus.Enable {
+		r.PromReporter = NewPromReporter(r.Name)
 		promOnce.Do(func() {
 			go func() {
 				http.Handle("/metrics", promhttp.Handler())

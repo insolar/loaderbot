@@ -9,53 +9,75 @@ package loaderbot
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
-var (
-	// promGoroutines1 = promauto.NewGauge(prometheus.GaugeOpts{
-	// 	Name: "loaderbot_goroutines_1",
-	// 	Help: "loaderbot_goroutines_1",
-	// })
-	//
-	// promGoroutines2 = promauto.NewGauge(prometheus.GaugeOpts{
-	// 	Name: "loaderbot_goroutines_2",
-	// 	Help: "loaderbot_goroutines_2",
-	// })
+type PromReporter struct {
+	promTickSuccessRatio prometheus.Gauge
+	promTickP50          prometheus.Gauge
+	promTickP95          prometheus.Gauge
+	promTickP99          prometheus.Gauge
+	promTickMax          prometheus.Gauge
+	promRPS              prometheus.Gauge
+}
 
-	promTickSuccessRatio = promauto.NewGauge(prometheus.GaugeOpts{
+func NewPromReporter(label string) *PromReporter {
+	m := &PromReporter{}
+	m.promTickSuccessRatio = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "loaderbot_tick_success_ratio",
 		Help: "Success requests ratio",
+		ConstLabels: prometheus.Labels{
+			"runner_name": label,
+		},
 	})
-	promTickP50 = promauto.NewGauge(prometheus.GaugeOpts{
+	_ = prometheus.Register(m.promTickSuccessRatio)
+	m.promTickP50 = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "loaderbot_tick_p50",
 		Help: "Response time 50 Percentile",
+		ConstLabels: prometheus.Labels{
+			"runner_name": label,
+		},
 	})
-	promTickP95 = promauto.NewGauge(prometheus.GaugeOpts{
+	_ = prometheus.Register(m.promTickP50)
+	m.promTickP95 = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "loaderbot_tick_p95",
 		Help: "Response time 95 Percentile",
+		ConstLabels: prometheus.Labels{
+			"runner_name": label,
+		},
 	})
-	promTickP99 = promauto.NewGauge(prometheus.GaugeOpts{
+	_ = prometheus.Register(m.promTickP95)
+	m.promTickP99 = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "loaderbot_tick_p99",
 		Help: "Response time 99 Percentile",
+		ConstLabels: prometheus.Labels{
+			"runner_name": label,
+		},
 	})
-	promTickMax = promauto.NewGauge(prometheus.GaugeOpts{
+	_ = prometheus.Register(m.promTickP99)
+	m.promTickMax = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "loaderbot_tick_max",
 		Help: "Response time MAX",
+		ConstLabels: prometheus.Labels{
+			"runner_name": label,
+		},
 	})
-	promRPS = promauto.NewGauge(prometheus.GaugeOpts{
+	_ = prometheus.Register(m.promTickMax)
+	m.promRPS = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "loaderbot_tick_rps",
 		Help: "Requests per second rate",
+		ConstLabels: prometheus.Labels{
+			"runner_name": label,
+		},
 	})
-)
-
-type PromReporter struct{}
+	_ = prometheus.Register(m.promRPS)
+	return m
+}
 
 func (m *PromReporter) reportTick(tm *TickMetrics) {
-	promTickP50.Set(float64(tm.Metrics.Latencies.P50.Milliseconds()))
-	promTickP95.Set(float64(tm.Metrics.Latencies.P95.Milliseconds()))
-	promTickP99.Set(float64(tm.Metrics.Latencies.P99.Milliseconds()))
-	promTickMax.Set(float64(tm.Metrics.Latencies.Max.Milliseconds()))
-	promTickSuccessRatio.Set(tm.Metrics.Success)
-	promRPS.Set(tm.Metrics.Rate)
+	m.promTickP50.Set(float64(tm.Metrics.Latencies.P50.Milliseconds()))
+	m.promTickP95.Set(float64(tm.Metrics.Latencies.P95.Milliseconds()))
+	m.promTickP99.Set(float64(tm.Metrics.Latencies.P99.Milliseconds()))
+	m.promTickMax.Set(float64(tm.Metrics.Latencies.Max.Milliseconds()))
+	m.promTickSuccessRatio.Set(tm.Metrics.Success)
+	m.promRPS.Set(tm.Metrics.Rate)
 }

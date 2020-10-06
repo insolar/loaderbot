@@ -26,7 +26,7 @@ func NewLoggingHTTPClient(debug bool, transportTimeout int) *http.Client {
 	http.DefaultTransport.(*http.Transport).MaxIdleConns = 65535
 	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = 65535
 	http.DefaultTransport.(*http.Transport).DisableCompression = true
-	http.DefaultTransport.(*http.Transport).ResponseHeaderTimeout = 10 * time.Second
+	http.DefaultTransport.(*http.Transport).ResponseHeaderTimeout = time.Duration(transportTimeout) * time.Second
 	if debug {
 		transport = &DumpTransport{
 			http.DefaultTransport,
